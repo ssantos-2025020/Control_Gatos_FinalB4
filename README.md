@@ -26,16 +26,16 @@ frontend/  Angular 18 (puerto 8080)
 
 ## Instalación
 
-Requisitos: Node.js 20+ y PostgreSQL.
+Requisitos: Node.js 20+, PNPM 9+ y PostgreSQL.
 
 ```bash
 # Backend
 cd backend
-npm install
+pnpm install
 
 # Frontend
 cd frontend
-npm install
+pnpm install
 ```
 
 ## Ejecución
@@ -43,11 +43,11 @@ npm install
 ```bash
 # Backend (puerto 2500)
 cd backend
-npm run dev
+pnpm dev
 
 # Frontend (puerto 8080)
 cd frontend
-npm start
+pnpm start
 ```
 
 ## Configuración (backend/.env)
