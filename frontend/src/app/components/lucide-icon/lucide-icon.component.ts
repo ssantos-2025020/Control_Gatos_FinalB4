@@ -108,7 +108,41 @@ const ICON_MAP: Record<string, any[]> = {
   standalone: true,
   imports: [CommonModule],
   template: `<svg #svgEl xmlns="http://www.w3.org/2000/svg" [attr.width]="size" [attr.height]="size" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg>`,
-  styles: [`:host { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }`],
+  styles: [
+    `:host { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+    button.btn-edit-ic,
+    button.btn-action:not(.danger) {
+      background: rgba(251, 146, 60, 0.15) !important;
+      color: #ffffff !important;
+      border-radius: 50% !important;
+      padding: 7px !important;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    button.btn-del-ic,
+    button.btn-action.danger {
+      background: rgba(244, 63, 94, 0.15) !important;
+      color: #ffffff !important;
+      border-radius: 50% !important;
+      padding: 7px !important;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    button.btn-edit-ic svg,
+    button.btn-action:not(.danger) svg {
+      stroke: #ffffff !important;
+    }
+
+    button.btn-del-ic svg,
+    button.btn-action.danger svg {
+      stroke: #ffffff !important;
+    }`,
+  ],
   encapsulation: ViewEncapsulation.None,
 })
 export class LucideIconComponent implements OnChanges {
