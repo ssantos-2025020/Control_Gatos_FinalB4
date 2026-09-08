@@ -127,10 +127,26 @@ export class DashboardComponent implements OnInit {
   private agruparGastosPorCategoria(list: Gasto[]) {
     const map: { [key: string]: { name: string; amountUSD: number; color: string } } = {};
     const colores: { [key: string]: string } = {
-      'Comida': '#1268ff', 'Transporte': '#00b9e8', 'Servicios': '#7228e8',
-      'Entretenimiento': '#ff6b9d', 'Salud': '#00e7a8', 'Otros': '#fbbf24',
+      'Alimentacion': '#1268ff',
+      'Transporte': '#00b9e8',
+      'Vivienda': '#7228e8',
+      'Servicios Publicos': '#ff6b9d',
+      'Comunicaciones': '#00e7a8',
+      'Salud': '#ffa500',
+      'Educacion': '#6ea8ff',
+      'Entretenimiento': '#c084fc',
+      'Ropa y Calzado': '#fbbf24',
+      'Compras': '#00d0a8',
+      'Viajes': '#ff6b9d',
+      'Mascotas': '#a855f7',
+      'Seguros': '#1268ff',
+      'Impuestos': '#00b9e8',
+      'Ahorro e Inversion': '#00e7a8',
+      'Otros': '#fbbf24',
+      'Comida': '#1268ff',
+      'Servicios': '#7228e8',
     };
-    const paleta = ['#1268ff', '#00b9e8', '#7228e8', '#ff6b9d', '#00e7a8', '#ffa500', '#6ea8ff', '#c084fc', '#00d0a8', '#fbbf24'];
+    const paleta = ['#1268ff', '#00b9e8', '#7228e8', '#ff6b9d', '#00e7a8', '#ffa500', '#6ea8ff', '#c084fc', '#00d0a8', '#fbbf24', '#a855f7'];
 
     list.forEach((g) => {
       const rawName = g.categoria?.nombre || 'Sin Categoría';

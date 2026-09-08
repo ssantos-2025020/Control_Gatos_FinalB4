@@ -92,10 +92,23 @@ export class GastosComponent implements OnInit, OnDestroy {
   gastoAEliminar = signal<Gasto | null>(null);
 
   private coloresCategoria: { [key: string]: string } = {
-    'Comida': '#1268ff', 'Transporte': '#00b9e8', 'Servicios': '#7228e8',
-    'Entretenimiento': '#ff6b9d', 'Salud': '#00e7a8', 'Hogar': '#ffa500',
-    'Compras': '#00d0a8', 'Educación': '#6ea8ff', 'Educacion': '#6ea8ff',
-    'Viajes': '#c084fc', 'Otros': '#fbbf24', 'Sin categoría': '#94a3b8',
+    'Alimentacion': '#1268ff',
+    'Transporte': '#00b9e8',
+    'Vivienda': '#7228e8',
+    'Servicios Publicos': '#ff6b9d',
+    'Comunicaciones': '#00e7a8',
+    'Salud': '#ffa500',
+    'Educacion': '#6ea8ff',
+    'Entretenimiento': '#c084fc',
+    'Ropa y Calzado': '#fbbf24',
+    'Compras': '#00d0a8',
+    'Viajes': '#ff6b9d',
+    'Mascotas': '#a855f7',
+    'Seguros': '#1268ff',
+    'Impuestos': '#00b9e8',
+    'Ahorro e Inversion': '#00e7a8',
+    'Otros': '#fbbf24',
+    'Sin categoría': '#94a3b8',
   };
 
   private coloresMetodo: { [key: string]: string } = {
