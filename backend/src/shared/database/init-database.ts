@@ -74,6 +74,9 @@ async function crearTablas(): Promise<void> {
   // (igual que la UI de la aplicación).
   await query(`ALTER TABLE ingresos ADD COLUMN IF NOT EXISTS categoria text`);
   await query(`ALTER TABLE ingresos ADD COLUMN IF NOT EXISTS metodo text`);
+
+  // El módulo de gastos también necesita el campo método de pago
+  await query(`ALTER TABLE gastos ADD COLUMN IF NOT EXISTS metodo text`);
 }
 
 async function seedCategorias(): Promise<void> {
