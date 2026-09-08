@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, signal, computed, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -15,7 +15,7 @@ import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { LucideIconComponent } from '../../components/lucide-icon/lucide-icon.component';
 
 const PREFS_KEY = 'cg_categorias_visual';
-const COLORES = ['#1268ff', '#00b9e8', '#00e7a8', '#7228e8', '#ff6b9d', '#00d0a8', '#ffa500', '#fbbf24', '#6ea8ff', '#c084fc', '#ff8a9a'];
+const COLORES = ['#1268ff', '#00b9e8', '#00e7a8', '#7228e8', '#ff6b9d', '#00d0a8', '#ffa500', '#fbbf24', '#6ea8ff', '#c084fc', '#ff8a9a', '#ef4444', '#22c55e', '#eab308', '#f97316', '#a855f7', '#06b6d4', '#84cc16', '#8b5cf6', '#ec4899'];
 const ICONOS = ['tag', 'utensils', 'car', 'zap', 'wifi', 'heart-pulse', 'graduation-cap', 'clapperboard', 'shirt', 'shopping-bag', 'plane', 'paw-print', 'home', 'wallet', 'piggy-bank'];
 const ICON_LABELS: Record<string, string> = {
   tag: 'Etiqueta',
@@ -74,6 +74,7 @@ export class CategoriasComponent implements OnInit, OnDestroy {
 
   categoriaForm!: FormGroup;
   categoriaEditando = signal<Categoria | null>(null);
+  modalAbierto = signal(false);
 
   get esCreacion(): boolean {
     return !this.categoriaEditando();
@@ -152,12 +153,12 @@ export class CategoriasComponent implements OnInit, OnDestroy {
 
   filas = computed(() => {
     const total = this.totalGastosPeriodo() || 1;
-    return this.categorias().map((c, i) => {
+    return this.categorias().map((c) => {
       const pref = this.prefs()[c.id];
       const gasto = this.gastosPeriodo().filter((g) => g.categoriaId === c.id).reduce((s, g) => s + Number(g.monto), 0);
       return {
         categoria: c,
-        color: pref?.color ?? c.color ?? COLORES[i % COLORES.length],
+        color: this.colorEfectivo(c),
         icono: pref?.icono ?? c.icono ?? 'tag',
         descripcion: pref?.descripcion ?? (c.descripcion ?? ''),
         gastoUSD: gasto,
@@ -202,8 +203,13 @@ export class CategoriasComponent implements OnInit, OnDestroy {
 
   colorDe = (nombre: string): string => {
     const c = this.categorias().find((cat) => cat.nombre === nombre);
-    const idx = c ? this.categorias().indexOf(c) : 0;
-    return this.prefs()[c?.id ?? '']?.color ?? c?.color ?? COLORES[idx % COLORES.length];
+    return c ? this.colorEfectivo(c) : COLORES[0];
+  };
+
+  /** Color efectivo de una categoría (preferencia local > color BD > paleta). */
+  private colorEfectivo(c: Categoria): string {
+    const idx = this.categorias().indexOf(c);
+    return this.prefs()[c.id]?.color ?? c.color ?? COLORES[idx % COLORES.length];
   };
 
   opacidadDe = (nombre: string): number => (this.categoriasEnFiltro().has(nombre) ? 1 : 0.35);
@@ -336,7 +342,7 @@ export class CategoriasComponent implements OnInit, OnDestroy {
 
   public abrirNuevoModal(): void {
     this.resetForm();
-    this.scrollAlFormulario();
+    this.modalAbierto.set(true);
   }
 
   public abrirEditarModal(categoria: Categoria): void {
@@ -349,11 +355,21 @@ export class CategoriasComponent implements OnInit, OnDestroy {
     this.iconoElegido.set(!!(pref?.icono ?? categoria.icono));
     this.iconoMenuAbierto.set(false);
     this.descripcion.set(pref?.descripcion ?? categoria.descripcion ?? '');
-    this.scrollAlFormulario();
+    this.modalAbierto.set(true);
   }
 
-  public cancelarEdicion(): void {
+  public cerrarModal(): void {
     this.resetForm();
+  }
+
+  @HostListener('document:keydown.escape', ['$event'])
+  onDocumentEscape(): void {
+    if (this.modalAbierto()) this.cerrarModal();
+  }
+
+  public onColorCustom(event: Event): void {
+    const v = (event.target as HTMLInputElement).value;
+    if (v) this.colorSeleccionado.set(v);
   }
 
   public elegirIcono(icono: string): void {
@@ -377,20 +393,11 @@ export class CategoriasComponent implements OnInit, OnDestroy {
     this.iconoElegido.set(false);
     this.iconoMenuAbierto.set(false);
     this.descripcion.set('');
-  }
-
-  private scrollAlFormulario(): void {
-    requestAnimationFrame(() => {
-      document.getElementById('panel-formulario')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      setTimeout(() => {
-        const inp = document.getElementById('campo-nombre') as HTMLInputElement | null;
-        if (inp) inp.focus();
-      }, 400);
-    });
+    this.modalAbierto.set(false);
   }
 
   private getColorLibre(): string {
-    const usados = this.categorias().map((c) => this.prefs()[c.id]?.color).filter(Boolean);
+    const usados = this.categorias().map((c) => this.colorEfectivo(c)).filter(Boolean);
     return COLORES.find((c) => !usados.includes(c)) ?? COLORES[this.categorias().length % COLORES.length];
   }
 
@@ -410,12 +417,21 @@ export class CategoriasComponent implements OnInit, OnDestroy {
       return;
     }
 
+    const colorSeleccionado = this.colorSeleccionado();
+    const otraConColor = this.categorias().find(
+      (c) => c.id !== editando?.id && this.colorEfectivo(c) === colorSeleccionado
+    );
+    if (otraConColor) {
+      this.formErrorMsg.set(`El color ya lo usa la categoría "${otraConColor.nombre}". Elige otro color.`);
+      return;
+    }
+
     this.guardando.set(true);
 
     const onSuccess = (id: string) => {
       const prefsActuales = this.prefs();
       prefsActuales[id] = {
-        color: this.colorSeleccionado(),
+        color: colorSeleccionado,
         icono: this.iconoSeleccionado(),
         descripcion: this.descripcion().trim(),
         estado: prefsActuales[id]?.estado ?? 'Activa',
@@ -425,6 +441,7 @@ export class CategoriasComponent implements OnInit, OnDestroy {
       this.guardando.set(false);
       this.categoriaEditando.set(null);
       this.iconoElegido.set(false);
+      this.modalAbierto.set(false);
       this.mostrarToast(editando ? 'Cambios guardados correctamente' : 'Categoría creada correctamente');
       this.cargarDatos();
     };

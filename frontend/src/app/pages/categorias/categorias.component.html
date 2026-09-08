@@ -157,7 +157,7 @@
           </section>
         </div>
 
-        <!-- Columna lateral: dona + formulario -->
+        <!-- Columna lateral: dona -->
         <aside class="sticky-panel">
           <div class="glass-card">
             <div class="panel-header">
@@ -182,82 +182,87 @@
             </div>
             <div class="no-stats" *ngIf="gastosPorCategoria().length === 0">Sin datos de gastos.</div>
           </div>
-
-          <div class="glass-card form-panel" id="panel-formulario">
-            <form [formGroup]="categoriaForm" (ngSubmit)="guardarCategoria()" novalidate>
-              <div class="panel-header">
-                <div class="panel-title">
-                  <lucide-icon [name]="esCreacion ? 'plus' : 'pencil'" [size]="16"></lucide-icon>
-                  {{ esCreacion ? 'Agregar nueva categoría' : 'Editar categoría' }}
-                </div>
-                <span class="panel-badge" *ngIf="!esCreacion">{{ categoriaEditando()?.nombre }}</span>
-              </div>
-
-              <div *ngIf="formErrorMsg()" class="alert-error form-alert"><lucide-icon [name]="'triangle-alert'" [size]="14"></lucide-icon> {{ formErrorMsg() }}</div>
-
-              <div class="form-field">
-                <label for="campo-nombre">Nombre *</label>
-                <input id="campo-nombre" formControlName="nombre" type="text" class="form-input" maxlength="60" placeholder="Ej. Comida, Transporte..." />
-                <span *ngIf="nombreInvalido" class="form-error"><lucide-icon [name]="'info'" [size]="12"></lucide-icon> El nombre de la categoría es obligatorio</span>
-              </div>
-
-              <div class="form-field">
-                <label for="campo-desc">Descripción</label>
-                <textarea id="campo-desc" class="form-input" rows="2" maxlength="120" [ngModel]="descripcion()" [ngModelOptions]="{standalone: true}" (ngModelChange)="descripcion.set($event)" placeholder="Descripción corta y opcional"></textarea>
-              </div>
-
-              <div class="form-field">
-                <label>Color</label>
-                <div class="color-swatches">
-                  <button
-                    type="button"
-                    *ngFor="let c of coloresPaleta"
-                    class="swatch"
-                    [class.selected]="colorSeleccionado() === c"
-                    [style.background]="c"
-                    [title]="c"
-                    (click)="colorSeleccionado.set(c)"
-                  ></button>
-                </div>
-              </div>
-
-              <div class="form-field">
-                <label>Ícono</label>
-                <div class="icon-select-wrap">
-                  <button type="button" class="icon-select-btn" (click)="iconoMenuAbierto.set(!iconoMenuAbierto())">
-                    <span class="icon-preview"><lucide-icon [name]="iconoSeleccionado()" [size]="16"></lucide-icon></span>
-                    <span class="icon-select-label">{{ iconoLabel() }}</span>
-                    <lucide-icon [name]="'chevron-down'" [size]="15"></lucide-icon>
-                  </button>
-                  <div class="icon-select-menu" *ngIf="iconoMenuAbierto()">
-                    <button
-                      type="button"
-                      *ngFor="let ic of iconosDisponibles"
-                      class="icon-option"
-                      [class.selected]="iconoSeleccionado() === ic && iconoElegido()"
-                      (click)="elegirIcono(ic)"
-                    >
-                      <lucide-icon [name]="ic" [size]="18"></lucide-icon>
-                      <span class="icon-option-name">{{ filtrarNombreIcono(ic) }}</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="form-footer">
-                <button type="button" class="btn-sm-outline" *ngIf="!esCreacion" (click)="cancelarEdicion()">Cancelar</button>
-                <button type="submit" class="btn-primary full" [disabled]="guardando()">
-                  <lucide-icon [name]="guardando() ? 'refresh-cw' : (esCreacion ? 'plus' : 'save')" [size]="16"></lucide-icon>
-                  {{ guardando() ? 'Guardando...' : (esCreacion ? 'Guardar categoría' : 'Guardar cambios') }}
-                </button>
-              </div>
-            </form>
-          </div>
         </aside>
       </div>
     </main>
   </div>
 </div>
+
+<!-- Modal crear / editar categoría -->
+  <div class="modal-backdrop" *ngIf="modalAbierto()" (click)="cerrarModal()">
+    <div class="modal-container glass-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ esCreacion ? 'Nueva Categoría' : 'Editar Categoría' }}</h2>
+        <button (click)="cerrarModal()" class="btn-close-modal">&times;</button>
+      </div>
+
+      <form [formGroup]="categoriaForm" (ngSubmit)="guardarCategoria()" class="modal-form">
+        <div *ngIf="formErrorMsg()" class="alert-error form-alert"><lucide-icon [name]="'triangle-alert'" [size]="14"></lucide-icon> {{ formErrorMsg() }}</div>
+
+        <div class="form-field">
+          <label for="campo-nombre">Nombre *</label>
+          <input id="campo-nombre" formControlName="nombre" type="text" class="form-input" maxlength="60" placeholder="Ej. Comida, Transporte..." />
+          <span *ngIf="nombreInvalido" class="form-error"><lucide-icon [name]="'info'" [size]="12"></lucide-icon> El nombre de la categoría es obligatorio</span>
+        </div>
+
+        <div class="form-field">
+          <label for="campo-desc">Descripción</label>
+          <textarea id="campo-desc" class="form-input" rows="2" maxlength="120" [ngModel]="descripcion()" [ngModelOptions]="{standalone: true}" (ngModelChange)="descripcion.set($event)" placeholder="Descripción corta y opcional"></textarea>
+        </div>
+
+        <div class="form-field">
+          <label>Color</label>
+          <div class="color-swatches">
+            <button
+              type="button"
+              *ngFor="let c of coloresPaleta"
+              class="swatch"
+              [class.selected]="colorSeleccionado() === c"
+              [style.background]="c"
+              [title]="c"
+              (click)="colorSeleccionado.set(c)"
+            ></button>
+          </div>
+          <div class="color-custom">
+            <input type="color" class="color-input" [value]="colorSeleccionado()" (input)="onColorCustom($event)" title="Elige un color personalizado" />
+            <span class="color-custom-label">Personalizado</span>
+            <span class="color-hex">{{ colorSeleccionado() }}</span>
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label>Ícono</label>
+          <div class="icon-select-wrap">
+            <button type="button" class="icon-select-btn" (click)="iconoMenuAbierto.set(!iconoMenuAbierto())">
+              <span class="icon-preview"><lucide-icon [name]="iconoSeleccionado()" [size]="16"></lucide-icon></span>
+              <span class="icon-select-label">{{ iconoLabel() }}</span>
+              <lucide-icon [name]="'chevron-down'" [size]="15"></lucide-icon>
+            </button>
+            <div class="icon-select-menu" *ngIf="iconoMenuAbierto()">
+              <button
+                type="button"
+                *ngFor="let ic of iconosDisponibles"
+                class="icon-option"
+                [class.selected]="iconoSeleccionado() === ic && iconoElegido()"
+                (click)="elegirIcono(ic)"
+              >
+                <lucide-icon [name]="ic" [size]="18"></lucide-icon>
+                <span class="icon-option-name">{{ filtrarNombreIcono(ic) }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" (click)="cerrarModal()" class="btn-secondary">Cancelar</button>
+          <button type="submit" class="btn-primary" [disabled]="guardando()">
+            <lucide-icon [name]="guardando() ? 'refresh-cw' : (esCreacion ? 'plus' : 'save')" [size]="16"></lucide-icon>
+            {{ guardando() ? 'Guardando...' : (esCreacion ? 'Guardar categoría' : 'Guardar cambios') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 
 <!-- Toast de éxito -->
 <div class="gastos-toast" *ngIf="toast()">
