@@ -4,7 +4,7 @@ import { initDatabase } from './shared/database/init-database';
 import { seedTestData } from './shared/database/seed-data';
 import { checkAdmin } from './shared/database/check-admin';
 
-const PORT = Number(process.env.PORT ?? 3100);
+const PORT = Number(process.env.PORT ?? 2500);
 
 async function main(): Promise<void> {
   await initDatabase();
