@@ -91,19 +91,19 @@
             </div>
             <div class="chart-container">
               <canvas baseChart
-                *ngIf="filtroGranularidad() === 'mes' && barChartData().datasets[0].data.length > 0"
+                *ngIf="filtroGranularidad() === 'mes'"
                 [data]="barChartData()"
                 [options]="lineChartOptions()"
                 [type]="'bar'"
               ></canvas>
               <canvas baseChart
-                *ngIf="filtroGranularidad() !== 'mes' && lineChartData().datasets[0].data.length > 0"
+                *ngIf="filtroGranularidad() !== 'mes' && hasLineChartData()"
                 [data]="lineChartData()"
                 [options]="lineChartOptions()"
                 [type]="'line'"
               ></canvas>
               <div
-                *ngIf="(filtroGranularidad() === 'mes' ? barChartData().datasets[0].data.length : lineChartData().datasets[0].data.length) === 0"
+                *ngIf="!hasChartDataForGranularidad()"
                 class="no-stats"
               >Sin datos de gastos este mes</div>
             </div>
@@ -126,12 +126,12 @@
             <div class="donut-layout">
               <div class="donut-chart-wrap">
                 <canvas baseChart
-                  *ngIf="donutChartData().datasets[0].data.length > 0"
+                  *ngIf="hasDonutChartData()"
                   [data]="donutChartData()"
                   [options]="donutChartOptions()"
                   [type]="'doughnut'"
                 ></canvas>
-                <div class="donut-center-label" *ngIf="donutChartData().datasets[0].data.length > 0">
+                <div class="donut-center-label" *ngIf="hasDonutChartData()">
                   <span class="donut-center-total">{{ totalGastadoPeriodo() }}</span>
                   <span class="donut-center-sub">Total</span>
                 </div>
