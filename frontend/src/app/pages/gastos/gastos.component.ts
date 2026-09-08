@@ -140,7 +140,7 @@ export class GastosComponent implements OnInit, OnDestroy {
       if (cat && g.categoriaId !== cat) return false;
       if (usr && g.usuario?.nombre !== usr) return false;
       if (ini || fin) {
-        const f = new Date(g.fecha).toISOString().substring(0, 10);
+        const f = this.filtroFecha.toYMDLocal(g.fecha);
         if (ini && f < ini) return false;
         if (fin && f > fin) return false;
       }
@@ -224,7 +224,7 @@ export class GastosComponent implements OnInit, OnDestroy {
   evolucionDatos = computed(() => {
     const mapa = new Map<string, number>();
     this.gastosPeriodo().forEach((g) => {
-      const fecha = new Date(g.fecha).toISOString().substring(0, 10);
+      const fecha = this.filtroFecha.toYMDLocal(g.fecha);
       mapa.set(fecha, (mapa.get(fecha) ?? 0) + Number(g.monto));
     });
     return [...mapa.entries()].sort(([a], [b]) => a.localeCompare(b));
@@ -243,7 +243,7 @@ export class GastosComponent implements OnInit, OnDestroy {
         const d = new Date(fecha + 'T00:00');
         const inicio = new Date(d);
         inicio.setDate(inicio.getDate() - inicio.getDay() + 1);
-        const key = inicio.toISOString().substring(0, 10);
+        const key = this.filtroFecha.toYMDLocal(inicio);
         sem[key] = (sem[key] ?? 0) + v;
       });
       return Object.entries(sem)
@@ -384,7 +384,7 @@ export class GastosComponent implements OnInit, OnDestroy {
           callbacks: {
             title: (items: any) => items[0]?.label || '',
             label: (item: any) => {
-              const val = this.currencyService.formatearValor(Number(item.parsed.y ?? item.parsed));
+              const val = this.currencyService.formatearValor(Number(item.parsed.y ?? item.parsed) || 0);
               const dataset = item.dataset;
               let label = dataset.label || '';
               if (label) {
@@ -772,7 +772,7 @@ export class GastosComponent implements OnInit, OnDestroy {
     this.gastoForm.setValue({
       descripcion: gasto.descripcion,
       monto: this.formatMontoInput(String(gasto.monto)),
-      fecha: new Date(gasto.fecha).toISOString().substring(0, 10),
+      fecha: this.filtroFecha.toYMDLocal(gasto.fecha),
       categoriaId: gasto.categoriaId,
       metodo: gasto.metodo ?? 'Efectivo',
       usuarioId: gasto.usuario?.id ?? '',
