@@ -1,0 +1,373 @@
+<div class="app-shell">
+  <app-sidebar></app-sidebar>
+
+  <!-- Main Area -->
+  <div class="main-area">
+    <header class="topbar">
+      <div class="topbar-left">
+        <h2 class="page-title">Presupuestos</h2>
+        <p class="page-subtitle">Define límites por categoría y sigue tu avance de gasto.</p>
+      </div>
+      <div class="topbar-right">
+        <button class="btn-sm-outline" (click)="mostrarHistorial.set(true)">
+          <lucide-icon [name]="'history'" [size]="15"></lucide-icon> Historial de presupuestos
+        </button>
+        <button class="btn-primary" (click)="abrirNuevoPresupuesto()">
+          <lucide-icon [name]="'plus'" [size]="16"></lucide-icon> Nuevo Presupuesto
+        </button>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <div *ngIf="cargando()" class="loading-state">
+        <img src="assets/Logo sinfondo.png" alt="Legatus" class="loading-logo" />
+        <div class="spinner"></div>
+        <p>Cargando presupuestos...</p>
+      </div>
+
+      <div *ngIf="errorMsg()" class="alert-error"><lucide-icon [name]="'triangle-alert'" [size]="16"></lucide-icon> {{ errorMsg() }}</div>
+
+      <ng-container *ngIf="!cargando() && !errorMsg()">
+        <section class="stats-grid">
+          <!-- 1. Presupuesto total -->
+          <div class="glass-card stat-card card-blue">
+            <div class="stat-icon-wrap blue"><lucide-icon name="wallet" [size]="22"></lucide-icon></div>
+            <div class="stat-content">
+              <span class="stat-label">Presupuesto total</span>
+              <span class="stat-value blue-text">{{ currencyService.formatear(presupuestoTotal()) }}</span>
+            </div>
+          </div>
+
+          <!-- 2. Gastado -->
+          <div class="glass-card stat-card card-green">
+            <div class="stat-icon-wrap green"><lucide-icon name="clipboard-check" [size]="22"></lucide-icon></div>
+            <div class="stat-content">
+              <span class="stat-label">Gastado</span>
+              <span class="stat-value red-text">{{ currencyService.formatear(gastadoTotal()) }}</span>
+              <span class="stat-change neutral">{{ pctTotal() }}% del presupuesto</span>
+            </div>
+          </div>
+
+          <!-- 3. Disponible -->
+          <div class="glass-card stat-card">
+            <div class="stat-icon-wrap purple"><lucide-icon name="wallet-cards" [size]="22"></lucide-icon></div>
+            <div class="stat-content">
+              <span class="stat-label">Disponible</span>
+              <span class="stat-value green-text">{{ currencyService.formatear(disponibleTotal()) }}</span>
+              <span class="stat-change neutral">{{ pctDisponible() }}% del presupuesto</span>
+            </div>
+          </div>
+
+          <!-- 4. Comparación -->
+          <div class="glass-card stat-card card-orange">
+            <div class="stat-icon-wrap orange"><lucide-icon name="trending-up" [size]="22"></lucide-icon></div>
+            <div class="stat-content">
+              <span class="stat-label">Comparación</span>
+              <span class="stat-value comparacion-valor" [class.up]="comparacion().clase === 'up'">{{ comparacion().valor }}</span>
+              <span class="stat-change neutral">vs mes anterior</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Fila de paneles principales -->
+        <section class="charts-row">
+          <!-- a) Distribución del presupuesto -->
+          <div class="glass-card chart-panel">
+            <div class="panel-header">
+              <div class="panel-title">Distribución del presupuesto</div>
+              <select class="evol-select" [ngModel]="periodo()" (ngModelChange)="periodo.set($event); cambiarPeriodo()">
+                <option value="actual">Este mes</option>
+                <option value="anterior">Mes anterior</option>
+              </select>
+            </div>
+            <div class="donut-layout">
+              <div class="donut-chart-wrap" style="width:170px;height:170px;">
+                <canvas baseChart
+                  *ngIf="hasDonutData()"
+                  [type]="'doughnut'"
+                  [data]="donutData()"
+                  [options]="donutOptions()"></canvas>
+                <div class="donut-center-total" *ngIf="hasDonutData()">
+                  <span class="dct-label">Total</span>
+                  <span class="dct-value">{{ currencyService.formatear(presupuestoTotal()) }}</span>
+                </div>
+                <div *ngIf="!hasDonutData()" class="no-stats">
+                  Sin presupuestos configurados
+                </div>
+              </div>
+              <div class="donut-legend">
+                <div *ngFor="let p of presupuestos()" class="legend-item">
+                  <span class="legend-dot" [style.background]="p.color"></span>
+                  <span class="legend-name">{{ p.nombre }}</span>
+                  <span class="legend-amount">{{ currencyService.formatear(p.limiteUSD) }}</span>
+                  <span class="legend-pct">{{ p.limiteUSD > 0 ? Math.round((p.limiteUSD / presupuestoTotal()) * 1000) / 10 : 0 }}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- b) Resumen de presupuestos -->
+          <div class="glass-card chart-panel">
+            <div class="panel-header">
+              <div class="panel-title">Comparativa: Presupuesto vs Gastado</div>
+              <span class="panel-badge">{{ mesAnioLabel }}</span>
+            </div>
+            <div class="budget-comparison">
+              <div class="chart-container" style="height: 200px;">
+                <canvas baseChart
+                  *ngIf="hasComparisonData()"
+                  [type]="'bar'"
+                  [data]="comparisonData()"
+                  [options]="comparisonOptions()"></canvas>
+                <div *ngIf="!hasComparisonData()" class="no-stats">
+                  Sin datos para comparar
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Barra de filtros -->
+        <section class="action-bar glass-card">
+          <div class="filters-group">
+            <div class="search-field">
+              <span class="search-icon"><lucide-icon [name]="'search'" [size]="15"></lucide-icon></span>
+              <input
+                type="text"
+                [ngModel]="filtroSearch()"
+                (ngModelChange)="filtroSearch.set($event); onFiltroCambio()"
+                placeholder="Buscar por categoría..."
+                class="input-filter"
+              />
+            </div>
+            <select class="input-filter select-filter" [ngModel]="filtroCategoria()" (ngModelChange)="filtroCategoria.set($event); onFiltroCambio()">
+              <option value="">Todas las categorías</option>
+              <option *ngFor="let c of categorias()" [value]="c.nombre">{{ c.nombre }}</option>
+            </select>
+            <select class="input-filter select-filter" [ngModel]="filtroEstado()" (ngModelChange)="filtroEstado.set($event); onFiltroCambio()">
+              <option value="todos">Todos</option>
+              <option value="Alerta">Alerta</option>
+              <option value="Precaución">Precaución</option>
+              <option value="Bien">Bien</option>
+            </select>
+            <div class="month-select">
+              <app-selector-mes (mesSeleccionado)="onMesCambiado($event)"></app-selector-mes>
+            </div>
+            <button (click)="limpiarFiltros()" class="btn-link-clean" title="Limpiar filtros"><lucide-icon [name]="'refresh-cw'" [size]="14"></lucide-icon> Limpiar</button>
+            <button *ngIf="filtrosAnteriores.visible()" (click)="restaurarFiltrosAnteriores()" class="btn-link-clean" title="Restaurar filtro anterior" style="margin-left: 10px;"><lucide-icon [name]="'history'" [size]="14"></lucide-icon> Restaurar filtro anterior</button>
+          </div>
+        </section>
+
+        <!-- Tabla de presupuestos -->
+        <section class="glass-card budget-section">
+          <div *ngIf="presupuestosFiltrados().length === 0" class="empty-state">
+            <span class="empty-icon"><lucide-icon [name]="'wallet-cards'" [size]="30"></lucide-icon></span>
+            <h3>No se encontraron presupuestos</h3>
+            <p>Ajusta los filtros o define un nuevo presupuesto.</p>
+          </div>
+
+          <div *ngIf="presupuestosFiltrados().length > 0" class="table-responsive">
+            <table class="expenses-table">
+              <thead>
+                <tr>
+                  <th>Categoría</th>
+                  <th class="text-right">Presupuesto</th>
+                  <th class="text-right">Gastado</th>
+                  <th class="text-right">Disponible</th>
+                  <th>% Utilizado</th>
+                  <th>Estado</th>
+                  <th class="text-center">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let p of presupuestosPaginados()">
+                  <td>
+                    <div class="cat-cell">
+                      <span class="cat-icon-box" [style.background]="p.color + '22'" [style.color]="p.color">
+                        <lucide-icon [name]="p.icono" [size]="15"></lucide-icon>
+                      </span>
+                      <span class="cat-name-main">{{ p.nombre }}</span>
+                    </div>
+                  </td>
+                  <td class="text-right budget-white clickable" (click)="abrirEditarPresupuesto(p)">{{ currencyService.formatear(p.limiteUSD) }}</td>
+                  <td class="text-right gasto-amount clickable" (click)="abrirEditarPresupuesto(p)">{{ currencyService.formatear(p.gastadoUSD) }}</td>
+                  <td class="text-right green-text">{{ currencyService.formatear(p.disponibleUSD) }}</td>
+                  <td>
+                    <div class="progress-wrap">
+                      <div class="progress-track"><div class="progress-fill" [style.width]="Math.min(p.porcentaje,100) + '%'" [style.background]="p.barColor"></div></div>
+                      <span class="progress-pct" [ngStyle]="{ color: p.porcentaje > 90 ? '#ff6b7c' : (p.porcentaje >= 70 ? '#ffcf8a' : '#8affd0') }">{{ p.porcentaje }}%</span>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="estado-badge" [class.over]="p.estado === 'Alerta'" [class.warn]="p.estado === 'Precaución'" [class.ok]="p.estado === 'Bien'">
+                      {{ p.estado }}
+                    </span>
+                  </td>
+                  <td class="actions-col text-center">
+                    <button (click)="abrirEditarPresupuesto(p)" class="btn-action btn-edit-ic" title="Editar"><lucide-icon [name]="'pencil'" [size]="14"></lucide-icon></button>
+                    <button (click)="solicitarEliminar(p)" class="btn-action btn-del-ic" title="Eliminar"><lucide-icon [name]="'trash-2'" [size]="14"></lucide-icon></button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pie de página -->
+          <div class="table-footer" *ngIf="presupuestosFiltrados().length > 0">
+            <div class="table-footer-info">
+              <span>Mostrando {{ ((pagina()-1)*porPagina)+1 }} a {{ Math.min(pagina()*porPagina, presupuestosFiltrados().length) }} de {{ presupuestosFiltrados().length }} resultados</span>
+            </div>
+
+            <div class="paginacion-nums">
+              <button class="page-arrow" (click)="paginaAnterior()" [disabled]="pagina() === 1" title="Anterior"><lucide-icon [name]="'chevron-left'" [size]="14"></lucide-icon></button>
+              <button *ngFor="let p of paginas()" class="page-btn" [class.active]="p === pagina()" (click)="irPagina(p)">{{ p }}</button>
+              <button class="page-arrow" (click)="paginaSiguiente()" [disabled]="pagina() === totalPaginas()" title="Siguiente"><lucide-icon [name]="'chevron-right'" [size]="14"></lucide-icon></button>
+            </div>
+
+            <div class="footer-right">
+              <div class="total-card">
+                <span class="tg-label">Total presupuesto</span>
+                <span class="tg-value">{{ currencyService.formatear(presupuestoTotal()) }}</span>
+              </div>
+              <div class="total-card">
+                <span class="tg-label">Total gastado</span>
+                <span class="tg-value red">{{ currencyService.formatear(gastadoTotal()) }}</span>
+              </div>
+              <button (click)="exportarCSV()" class="btn-export"><lucide-icon [name]="'download'" [size]="15"></lucide-icon> Exportar</button>
+            </div>
+          </div>
+        </section>
+      </ng-container>
+    </main>
+  </div>
+</div>
+
+<!-- Modal: Nuevo / Editar presupuesto -->
+<div class="modal-backdrop" *ngIf="mostrarModal()" (keydown.escape)="mostrarModal.set(false)">
+  <div class="modal-container glass-card" (keydown)="onModalKeydown($event)">
+    <div class="modal-header">
+      <h2>{{ limiteEditando() ? 'Editar presupuesto de ' + limiteEditando() : 'Nuevo Presupuesto' }}</h2>
+      <button (click)="mostrarModal.set(false)" class="btn-close-modal">&times;</button>
+    </div>
+
+    <form [formGroup]="limiteForm" (ngSubmit)="guardarLimite()" class="modal-form">
+      <div class="form-field">
+        <label for="categoria">Categoría</label>
+        <select id="categoria" formControlName="categoria" class="form-input" [disabled]="!!limiteEditando()">
+          <option value="" disabled>Selecciona una categoría</option>
+          <option *ngFor="let c of categorias()" [value]="c.nombre">{{ c.nombre }}</option>
+        </select>
+      </div>
+
+      <div class="form-field">
+        <label for="monto">Monto asignado ({{ currencyService.getSimbolo() }})</label>
+        <div class="input-wrap">
+          <span class="input-symbol">{{ currencyService.getSimbolo() }}</span>
+          <input
+            id="monto"
+            type="text"
+            inputmode="decimal"
+            formControlName="monto"
+            placeholder="Ej. 500.00"
+            class="form-input form-input--symbol"
+            (input)="onMontoInput($event)"
+          />
+        </div>
+        <div *ngIf="limiteForm.get('monto')?.touched && limiteForm.get('monto')?.invalid" class="form-error">
+          <ng-container *ngIf="limiteForm.get('monto')?.errors?.['maxDecimales']">El monto admite hasta 2 decimales.</ng-container>
+          <ng-container *ngIf="!limiteForm.get('monto')?.errors?.['maxDecimales']">Ingresa un monto mayor a 0.</ng-container>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-field">
+          <label for="mes">Mes</label>
+          <select id="mes" formControlName="mes" class="form-input">
+            <option *ngFor="let m of [1,2,3,4,5,6,7,8,9,10,11,12]" [value]="m">{{ MESES_LARGOS[m-1] }}</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="anio">Año</label>
+          <select id="anio" formControlName="anio" class="form-input">
+            <option [value]="2026">2026</option>
+            <option [value]="2027">2027</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" (click)="mostrarModal.set(false)" class="btn-secondary">Cancelar</button>
+        <button type="submit" class="btn-primary" [disabled]="limiteForm.invalid || guardando()">
+          <span *ngIf="guardando()" class="spinner-sm"></span>
+          {{ limiteEditando() ? 'Actualizar presupuesto' : 'Guardar Presupuesto' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Toast de éxito -->
+<div class="gastos-toast" *ngIf="toast()">
+  <lucide-icon [name]="'check-circle'" [size]="18"></lucide-icon>
+  <span>{{ toast() }}</span>
+  <button type="button" class="gastos-toast-close" (click)="toast.set(null)" title="Cerrar">&times;</button>
+</div>
+
+<!-- Modal: Historial de presupuestos -->
+<div class="modal-backdrop" *ngIf="mostrarHistorial()">
+  <div class="modal-container glass-card modal-wide">
+    <div class="modal-header">
+      <h2>Historial de presupuestos</h2>
+      <button (click)="mostrarHistorial.set(false)" class="btn-close-modal">&times;</button>
+    </div>
+
+    <div class="table-responsive">
+      <table class="expenses-table">
+        <thead>
+          <tr>
+            <th>Mes</th>
+            <th class="text-right">Presupuesto</th>
+            <th class="text-right">Gastado</th>
+            <th>Uso</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let h of historial()">
+            <td class="cat-name-main">{{ h.label }}</td>
+            <td class="text-right budget-white">{{ h.presupuesto }}</td>
+            <td class="text-right gasto-amount">{{ h.gastado }}</td>
+            <td>
+              <div class="progress-wrap">
+                <div class="progress-track"><div class="progress-fill" [style.width]="Math.min(h.porcentaje,100) + '%'" [style.background]="h.estado === 'Alerta' ? '#ff4259' : (h.estado === 'Precaución' ? '#ffa500' : '#00e7a8')"></div></div>
+                <span class="progress-pct">{{ h.porcentaje }}%</span>
+              </div>
+            </td>
+            <td>
+              <span class="estado-badge" [class.over]="h.estado === 'Alerta'" [class.warn]="h.estado === 'Precaución'" [class.ok]="h.estado === 'Bien'">{{ h.estado }}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" (click)="mostrarHistorial.set(false)" class="btn-secondary">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Confirmar eliminar -->
+<div class="modal-backdrop" *ngIf="mostrarConfirmacion()">
+  <div class="modal-container glass-card modal-sm">
+    <div class="modal-header">
+      <h2>Eliminar presupuesto</h2>
+      <button (click)="cancelarEliminar()" class="btn-close-modal">&times;</button>
+    </div>
+    <p class="modal-hint">¿Seguro que deseas eliminar el presupuesto de <strong>{{ presupuestoAEliminar()?.nombre }}</strong>? Esta acción restablecerá el límite al valor por defecto.</p>
+    <div class="modal-footer">
+      <button type="button" (click)="cancelarEliminar()" class="btn-secondary">Cancelar</button>
+      <button type="button" (click)="confirmarEliminar()" class="btn-danger">Eliminar</button>
+    </div>
+  </div>
+</div>
