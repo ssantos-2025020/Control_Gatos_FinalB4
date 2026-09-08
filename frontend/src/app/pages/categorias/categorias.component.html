@@ -1,0 +1,267 @@
+<div class="app-shell">
+  <app-sidebar></app-sidebar>
+
+  <!-- Área principal -->
+  <div class="main-area">
+    <header class="topbar">
+      <div class="topbar-left">
+        <h2 class="page-title">Categorías</h2>
+        <p class="page-subtitle">Gestiona las categorías y observa la distribución de tus gastos.</p>
+      </div>
+      <div class="topbar-right">
+        <button (click)="abrirNuevoModal()" class="btn-primary"><lucide-icon [name]="'plus'" [size]="16"></lucide-icon> Nueva Categoría</button>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <div *ngIf="errorMsg()" class="alert-error"><lucide-icon [name]="'triangle-alert'" [size]="16"></lucide-icon> {{ errorMsg() }}</div>
+
+      <!-- Tarjetas de resumen -->
+      <section class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon-wrap purple"><lucide-icon name="tag" [size]="22"></lucide-icon></div>
+          <div class="stat-content">
+            <span class="stat-label">TOTAL CATEGORÍAS</span>
+            <span class="stat-value">{{ totalCategorias() }}</span>
+            <span class="stat-change neutral">{{ mesAnio() }}</span>
+          </div>
+        </div>
+        <div class="stat-card card-green">
+          <div class="stat-icon-wrap green"><lucide-icon name="check-circle" [size]="22"></lucide-icon></div>
+          <div class="stat-content">
+            <span class="stat-label">CATEGORÍAS ACTIVAS</span>
+            <span class="stat-value green-text">{{ categoriasActivas() }}</span>
+            <span class="stat-change neutral">{{ pctActivas() }}% del total</span>
+          </div>
+        </div>
+        <div class="stat-card card-blue">
+          <div class="stat-icon-wrap blue"><lucide-icon name="pie-chart" [size]="22"></lucide-icon></div>
+          <div class="stat-content">
+            <span class="stat-label">MÁS UTILIZADA</span>
+            <span class="stat-value">{{ masUtilizada().nombre }}</span>
+            <span class="stat-change neutral">{{ masUtilizada().pct }}% de los gastos</span>
+          </div>
+        </div>
+        <div class="stat-card card-orange">
+          <div class="stat-icon-wrap orange"><lucide-icon name="calendar" [size]="22"></lucide-icon></div>
+          <div class="stat-content">
+            <span class="stat-label">ÚLTIMA CREADA</span>
+            <span class="stat-value">{{ ultimaCategoria()?.nombre || '—' }}</span>
+            <span class="stat-change neutral">{{ ultimaCategoria()?.createdAt ? configService.formatearFecha(ultimaCategoria()!.createdAt) : 'Sin registros' }}</span>
+          </div>
+        </div>
+      </section>
+
+      <div class="layout-two-col">
+        <!-- Columna principal: filtros + tabla -->
+        <div class="span-main">
+          <section class="action-bar glass-card">
+            <div class="filters-group">
+              <div class="search-field search-right">
+                <input
+                  type="text"
+                  [ngModel]="filtroBusqueda()"
+                  (ngModelChange)="filtroBusqueda.set($event); onFiltroCambio()"
+                  placeholder="Buscar por categoría..."
+                  class="input-filter"
+                />
+                <span class="search-icon right"><lucide-icon [name]="'search'" [size]="15"></lucide-icon></span>
+              </div>
+              <select
+                class="input-filter select-filter"
+                [ngModel]="filtroCategoriaId()"
+                (ngModelChange)="filtroCategoriaId.set($event); onFiltroCambio()"
+              >
+                <option value="">Todas las categorías</option>
+                <option *ngFor="let c of categorias()" [value]="c.id">{{ c.nombre }}</option>
+              </select>
+              <select
+                class="input-filter select-filter"
+                [ngModel]="filtroEstado()"
+                (ngModelChange)="filtroEstado.set($event); onFiltroCambio()"
+              >
+                <option value="Todas">Estado: Todas</option>
+                <option value="Activa">Activa</option>
+                <option value="Inactiva">Inactiva</option>
+              </select>
+              <button (click)="limpiarFiltros()" class="btn-link-clean" title="Limpiar filtros"><lucide-icon [name]="'refresh-cw'" [size]="14"></lucide-icon> Limpiar</button>
+              <button *ngIf="filtrosAnteriores.visible()" (click)="restaurarFiltrosAnteriores()" class="btn-link-clean" title="Restaurar filtro anterior" style="margin-left: 10px;"><lucide-icon [name]="'history'" [size]="14"></lucide-icon> Restaurar filtro anterior</button>
+            </div>
+          </section>
+
+          <section class="glass-card table-panel">
+            <div class="table-responsive">
+              <table class="cats-table cats-table-wide">
+                <thead>
+                  <tr>
+                    <th>Categoría</th>
+                    <th>Descripción</th>
+                    <th>Color</th>
+                    <th class="text-right">Gastos</th>
+                    <th class="text-right">% del total</th>
+                    <th>Estado</th>
+                    <th class="text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let f of filasPaginadas()">
+                    <td>
+                      <div class="cat-cell">
+                        <span class="cat-avatar" [style.background]="f.color"><lucide-icon [name]="f.icono" [size]="15"></lucide-icon></span>
+                        <span class="cat-name">{{ f.categoria.nombre }}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="cat-desc" [title]="f.descripcion">{{ f.descripcion || '—' }}</span>
+                    </td>
+                    <td>
+                      <span class="color-cell">
+                        <span class="color-chip" [style.background]="f.color"></span>
+                        <span class="color-hex">{{ f.color }}</span>
+                      </span>
+                    </td>
+                    <td class="text-right">{{ f.gasto }}</td>
+                    <td class="text-right text-strong">{{ f.pct }}%</td>
+                    <td>
+                      <span class="estado-badge" [class.ok]="f.estado === 'Activa'" [class.muted]="f.estado === 'Inactiva'">
+                        <lucide-icon [name]="f.estado === 'Activa' ? 'check-circle' : 'x'" [size]="12"></lucide-icon>
+                        {{ f.estado }}
+                      </span>
+                    </td>
+                    <td class="text-right">
+                      <div class="actions-col">
+                        <button class="btn-action" title="Editar categoría" (click)="abrirEditarModal(f.categoria)"><lucide-icon [name]="'pencil'" [size]="16"></lucide-icon></button>
+                        <button class="btn-action danger" title="Eliminar categoría" (click)="eliminarCategoria(f.categoria)"><lucide-icon [name]="'trash-2'" [size]="16"></lucide-icon></button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div class="cats-loading no-stats" *ngIf="cargando()">Cargando categorías...</div>
+              <div class="empty-state" *ngIf="!cargando() && filasFiltradas().length === 0">
+                <lucide-icon [name]="'search'" [size]="32"></lucide-icon>
+                <h3>Sin resultados</h3>
+                <p>Ajusta los filtros de búsqueda para ver categorías.</p>
+              </div>
+            </div>
+
+            <div class="table-foot">
+              <span class="foot-info">Mostrando {{ filaInicio() }} a {{ filaFin() }} de {{ filasFiltradas().length }} resultados</span>
+              <div class="paginacion" *ngIf="totalPaginas() > 1">
+                <button class="btn-secondary btn-paginacion" [disabled]="pagina() === 1" (click)="paginaAnterior()"><lucide-icon [name]="'chevron-left'" [size]="15"></lucide-icon> Anterior</button>
+                <span class="pagina-label">Página {{ pagina() }} de {{ totalPaginas() }}</span>
+                <button class="btn-secondary btn-paginacion" [disabled]="pagina() === totalPaginas()" (click)="paginaSiguiente()">Siguiente <lucide-icon [name]="'chevron-right'" [size]="15"></lucide-icon></button>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- Columna lateral: dona + formulario -->
+        <aside class="sticky-panel">
+          <div class="glass-card">
+            <div class="panel-header">
+              <div class="panel-title"><lucide-icon [name]="'pie-chart'" [size]="16"></lucide-icon> Distribución por categoría</div>
+              <span class="panel-badge">{{ mesAnio() }}</span>
+            </div>
+            <div class="donut-layout donut-layout-col" *ngIf="gastosPorCategoria().length > 0">
+              <div class="donut-chart-wrap" style="width: 170px; height: 170px;">
+                <canvas baseChart [type]="'doughnut'" [data]="donutData()" [options]="donutOptions()"></canvas>
+                <div class="donut-center-total">
+                  <span class="dct-label">Total</span>
+                  <span class="dct-value">{{ totalGastosPeriodoFormateado() }}</span>
+                </div>
+              </div>
+              <div class="donut-legend">
+                <div *ngFor="let d of gastosPorCategoria()" class="legend-item" [class.dimmed]="!categoriasEnFiltro().has(d.nombre)">
+                  <span class="legend-dot" [style.background]="colorDe(d.nombre)"></span>
+                  <span class="legend-name">{{ d.nombre }}</span>
+                  <span class="legend-pct">{{ d.pct }}%</span>
+                </div>
+              </div>
+            </div>
+            <div class="no-stats" *ngIf="gastosPorCategoria().length === 0">Sin datos de gastos.</div>
+          </div>
+
+          <div class="glass-card form-panel" id="panel-formulario">
+            <form [formGroup]="categoriaForm" (ngSubmit)="guardarCategoria()" novalidate>
+              <div class="panel-header">
+                <div class="panel-title">
+                  <lucide-icon [name]="esCreacion ? 'plus' : 'pencil'" [size]="16"></lucide-icon>
+                  {{ esCreacion ? 'Agregar nueva categoría' : 'Editar categoría' }}
+                </div>
+                <span class="panel-badge" *ngIf="!esCreacion">{{ categoriaEditando()?.nombre }}</span>
+              </div>
+
+              <div *ngIf="formErrorMsg()" class="alert-error form-alert"><lucide-icon [name]="'triangle-alert'" [size]="14"></lucide-icon> {{ formErrorMsg() }}</div>
+
+              <div class="form-field">
+                <label for="campo-nombre">Nombre *</label>
+                <input id="campo-nombre" formControlName="nombre" type="text" class="form-input" maxlength="60" placeholder="Ej. Comida, Transporte..." />
+                <span *ngIf="nombreInvalido" class="form-error"><lucide-icon [name]="'info'" [size]="12"></lucide-icon> El nombre de la categoría es obligatorio</span>
+              </div>
+
+              <div class="form-field">
+                <label for="campo-desc">Descripción</label>
+                <textarea id="campo-desc" class="form-input" rows="2" maxlength="120" [ngModel]="descripcion()" [ngModelOptions]="{standalone: true}" (ngModelChange)="descripcion.set($event)" placeholder="Descripción corta y opcional"></textarea>
+              </div>
+
+              <div class="form-field">
+                <label>Color</label>
+                <div class="color-swatches">
+                  <button
+                    type="button"
+                    *ngFor="let c of coloresPaleta"
+                    class="swatch"
+                    [class.selected]="colorSeleccionado() === c"
+                    [style.background]="c"
+                    [title]="c"
+                    (click)="colorSeleccionado.set(c)"
+                  ></button>
+                </div>
+              </div>
+
+              <div class="form-field">
+                <label>Ícono</label>
+                <div class="icon-select-wrap">
+                  <button type="button" class="icon-select-btn" (click)="iconoMenuAbierto.set(!iconoMenuAbierto())">
+                    <span class="icon-preview"><lucide-icon [name]="iconoSeleccionado()" [size]="16"></lucide-icon></span>
+                    <span class="icon-select-label">{{ iconoLabel() }}</span>
+                    <lucide-icon [name]="'chevron-down'" [size]="15"></lucide-icon>
+                  </button>
+                  <div class="icon-select-menu" *ngIf="iconoMenuAbierto()">
+                    <button
+                      type="button"
+                      *ngFor="let ic of iconosDisponibles"
+                      class="icon-option"
+                      [class.selected]="iconoSeleccionado() === ic && iconoElegido()"
+                      (click)="elegirIcono(ic)"
+                    >
+                      <lucide-icon [name]="ic" [size]="18"></lucide-icon>
+                      <span class="icon-option-name">{{ filtrarNombreIcono(ic) }}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-footer">
+                <button type="button" class="btn-sm-outline" *ngIf="!esCreacion" (click)="cancelarEdicion()">Cancelar</button>
+                <button type="submit" class="btn-primary full" [disabled]="guardando()">
+                  <lucide-icon [name]="guardando() ? 'refresh-cw' : (esCreacion ? 'plus' : 'save')" [size]="16"></lucide-icon>
+                  {{ guardando() ? 'Guardando...' : (esCreacion ? 'Guardar categoría' : 'Guardar cambios') }}
+                </button>
+              </div>
+            </form>
+          </div>
+        </aside>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Toast de éxito -->
+<div class="gastos-toast" *ngIf="toast()">
+  <lucide-icon [name]="'check-circle'" [size]="18"></lucide-icon>
+  <span>{{ toast() }}</span>
+  <button type="button" class="gastos-toast-close" (click)="toast.set(null)" title="Cerrar">&times;</button>
+</div>
