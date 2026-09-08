@@ -311,6 +311,7 @@ export class DashboardComponent implements OnInit {
       return {
         labels: [`${meses[m - 1]} ${y}`],
         datasets: [{
+          label: 'Total',
           data: [0],
           backgroundColor: ['rgba(148,163,184,0.3)'],
           borderColor: '#94a3b8',
@@ -325,6 +326,7 @@ export class DashboardComponent implements OnInit {
     return {
       labels: [`${meses[m - 1]} ${y}`],
       datasets: [{
+        label: 'Total',
         data: [this.currencyService.convertir(total)],
         backgroundColor: ['rgba(59,130,246,0.85)'],
         borderColor: '#3b82f6',
@@ -370,18 +372,19 @@ export class DashboardComponent implements OnInit {
           displayColors: true,
           callbacks: {
             title: (items: any) => {
-              if (g === 'semana') return `Semana ${items[0].label} ${meses[m - 1]} ${y}`;
-              if (g === 'mes') return items[0].label;
-              return `Día ${items[0].label} ${meses[m - 1]} ${y}`;
+              const label = items?.[0]?.label;
+              if (g === 'semana') return `Semana ${label ?? `${meses[m - 1]} ${y}`} ${meses[m - 1]} ${y}`;
+              if (g === 'mes') return `${label ?? `${meses[m - 1]} ${y}`} · Total`;
+              return `Día ${label ?? ''} ${meses[m - 1]} ${y}`;
             },
             label: (item: any) => {
-              const val = item.parsed?.y ?? item.parsed;
+              const val = item.parsed?.y ?? item.parsed ?? 0;
               const dataset = item.dataset;
-              let label = dataset.label || '';
+              let label = String(dataset.label || '');
               if (label) {
                 label += ': ';
               }
-              label += this.currencyService.formatearValor(Number(val));
+              label += this.currencyService.formatearValor(Number(val) || 0);
               return label;
             },
           },
@@ -750,5 +753,9 @@ export class DashboardComponent implements OnInit {
 
   public scrollA(id: string): void {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  ngOnDestroy(): void {
+    // Cleanup any subscriptions if needed in the future
   }
 }

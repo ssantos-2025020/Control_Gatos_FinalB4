@@ -139,7 +139,7 @@ export class IngresosComponent implements OnInit, OnDestroy {
     const ini = this.filtroFechaInicio();
     const fin = this.filtroFechaFin();
     const base = this.filtroBasico();
-    const fechaDia = (iso: string) => new Date(iso).toISOString().substring(0, 10);
+    const fechaDia = (iso: string) => this.filtroFecha.toYMDLocal(iso);
     return base.filter((i) => {
       const f = fechaDia(i.fecha);
       if (ini && f < ini) return false;
@@ -387,7 +387,7 @@ export class IngresosComponent implements OnInit, OnDestroy {
     this.ingresoForm.setValue({
       descripcion: ingreso.descripcion,
       monto: this.formatMontoInput(String(ingreso.monto)),
-      fecha: new Date(ingreso.fecha).toISOString().substring(0, 10),
+      fecha: this.filtroFecha.toYMDLocal(ingreso.fecha),
       categoria: ingreso.categoria ?? '',
       metodo: ingreso.metodo ?? 'Transferencia',
       usuarioId: ingreso.usuario?.id ?? '',
@@ -412,8 +412,9 @@ export class IngresosComponent implements OnInit, OnDestroy {
       descripcion: v.descripcion,
       monto: Number(String(v.monto).replace(/,/g, '')),
       fecha: v.fecha,
+      categoria: v.categoria || 'Otros',
+      metodo: v.metodo || 'Transferencia',
     };
-    const categoria = v.categoria || 'Otros';
 
     const request$ = this.ingresoEditando()
       ? this.ingresosService.updateIngreso(this.ingresoEditando()!.id, input)

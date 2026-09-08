@@ -29,11 +29,11 @@
         <div class="glass-card chart-panel">
           <div class="panel-header">
             <div class="panel-title">Evolución de gastos</div>
-            <select class="evol-select" [ngModel]="evolucionModo()" (ngModelChange)="evolucionModo.set($event)">
-              <option value="dia">Por día</option>
-              <option value="semana">Por semana</option>
-              <option value="total">Total</option>
-            </select>
+            <div class="filter-chips">
+              <button class="chip-btn" [class.active]="evolucionModo() === 'dia'" (click)="evolucionModo.set('dia')">Por día</button>
+              <button class="chip-btn" [class.active]="evolucionModo() === 'semana'" (click)="evolucionModo.set('semana')">Por semana</button>
+              <button class="chip-btn" [class.active]="evolucionModo() === 'total'" (click)="evolucionModo.set('total')">Total</button>
+            </div>
           </div>
           <div class="chart-container" style="height: 230px;">
             <canvas baseChart [type]="evolucionChartType()" [data]="evolucionLineData()" [options]="evolucionLineOptions()" *ngIf="(evolucionLineData().labels?.length ?? 0) > 0"></canvas>
