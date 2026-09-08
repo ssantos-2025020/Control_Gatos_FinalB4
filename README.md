@@ -1,8 +1,8 @@
 # Legatus – Control de Gastos
 
-Aplicación web para la administración personal de finanzas: registro y seguimiento de **ingresos**, control de **gastos**, **presupuestos** por categoría, **categorías**, **reportes** y administración de **usuarios**.
+Aplicación web para la administración personal de finanzas: registro y seguimiento de **ingresos**, control de **gastos** (incluye método de pago), **presupuestos** por categoría y **categorías** personalizables.
 
-Cuenta con un **backend** de API REST (Express + TypeScript + PostgreSQL) y un **frontend** (Angular 18) con diseño responsivo, autenticación con JWT y carrusel de sesión.
+Cuenta con un **backend** de API REST (Express + TypeScript + PostgreSQL) y un **frontend** (Angular 18, standalone con signals) con diseño responsivo, autenticación con JWT, datos de prueba de los últimos 4 meses y carrusel de sesión.
 
 ## Credenciales
 
@@ -14,40 +14,40 @@ Cuenta con un **backend** de API REST (Express + TypeScript + PostgreSQL) y un *
 | Capa | Tecnologías |
 | --- | --- |
 | Backend | Node.js, Express, TypeScript, PostgreSQL (`pg`), bcrypt, jsonwebtoken |
-| Frontend | Angular 18 (standalone, signals), Chart.js (`ng2-charts`), instrucciones de Lucide |
-| Monorepo | PNPM workspaces (`frontend/` y `backend/` en la raíz) |
+| Frontend | Angular 18 (standalone, signals), Chart.js (`ng2-charts`), iconos de Lucide |
+| Monorepo | `frontend/` y `backend/` en la raíz |
 
 ## Estructura
 
 ```
-backend/   Express + TypeScript + PostgreSQL (puerto 3100)
-frontend/  Angular 18 (puerto 4200)
+backend/   Express + TypeScript + PostgreSQL (puerto 2500)
+frontend/  Angular 18 (puerto 8080)
 ```
 
 ## Instalación
 
-Requisitos: Node.js 20+, PNPM 9+ y PostgreSQL con la base `control_gastos` creada.
+Requisitos: Node.js 20+ y PostgreSQL.
 
 ```bash
-# Backend (puerto 3100)
+# Backend
 cd backend
-pnpm install
+npm install
 
-# Frontend (puerto 4200)
+# Frontend
 cd frontend
-pnpm install
+npm install
 ```
 
 ## Ejecución
 
 ```bash
-# Backend (puerto 3100)
+# Backend (puerto 2500)
 cd backend
-pnpm dev
+npm run dev
 
-# Frontend (puerto 4200)
+# Frontend (puerto 8080)
 cd frontend
-pnpm start
+npm start
 ```
 
 ## Configuración (backend/.env)
@@ -55,8 +55,8 @@ pnpm start
 El backend requiere las siguientes variables en `backend/.env`:
 
 ```
-PORT=3100
-DATABASE_URL="postgresql://postgres:admin@localhost:5432/control_gastos?schema=public"
+PORT=2500
+DATABASE_URL="postgresql://postgres:admin@localhost:5432/control_gastos_finalb4"
 JWT_SECRET="..."
 JWT_EXPIRES_IN="3h"
 ADMIN_EMAIL="admin@controlgastos.com"
@@ -64,25 +64,26 @@ ADMIN_PASSWORD="Admin123!"
 ADMIN_NOMBRE="Administrador"
 ```
 
-La sesión expira según `JWT_EXPIRES_IN`. Antes de que caduque, el frontend muestra un aviso para extenderla; si no se responde, cierra la sesión automáticamente.
+Al iniciar, el backend crea las tablas, inserta las categorías por defecto, siembra datos de prueba de los últimos 4 meses y verifica las credenciales del administrador. La sesión expira según `JWT_EXPIRES_IN`; el frontend avisa antes de que caduque y permite extenderla.
 
 ## Estado actual de los módulos
 
 Funcionales:
 
-- **Login / Autenticación**
-- **Dashboard** — resumen de evolución, gastos por categoría, presupuestos y movimientos recientes
-- **Ingresos** — registro, edición y paginación de ingresos
+- **Login / Autenticación** (JWT)
+- **Dashboard** — evolución de gastos, gastos por categoría, presupuestos y movimientos recientes
+- **Ingresos** — registro, edición, eliminación y paginación
+- **Gastos** — registro, edición, eliminación y método de pago (Efectivo/Tarjeta/Transferencia)
+- **Presupuestos** — asignación y control por categoría con estado (Bien/Precaución/Alerta)
+- **Categorías** — gestión con color personalizado y validación de colores únicos
 - **Configuración** — perfil y moneda
 
-Pendientes (se muestran como "Próximamente"):
+Pendientes:
 
-- Gastos
-- Movimientos
-- Presupuestos (detalle)
-- Categorías (gestión)
 - Reportes
 - Usuarios (administración)
+- API de Google
+- Roles
 
 ## Flujo de trabajo en Git
 
@@ -90,4 +91,6 @@ El proyecto se desarrolla con **Git Flow simplificado**:
 
 - `main` — rama principal, solo recibe el estado inicial del proyecto.
 - `develop` — rama de integración; aquí se fusionan las entregas mediante *pull requests*.
-- `ssantos-2025020` — rama de trabajo donde se realizan todos los commits de las entregas.
+- `ssantos-2025020` — rama de trabajo donde se realizan los commits de las entregas.
+
+Para cada entrega se sigue el ciclo: **commit → push → pull request** (de `ssantos-2025020` hacia `develop`) **→ merge**, de modo que cada commit queda reflejado en `develop` con su propio pull request.
