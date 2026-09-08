@@ -17,12 +17,11 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./pages/ingresos/ingresos.component').then((m) => m.IngresosComponent),
   },
-  // Secciones visibles y portadas al router: se mostrarán Próximamente.
+  // Secciones aún no migradas: se mostrarán Próximamente.
   {
     path: 'gastos',
     canActivate: [authGuard],
-    loadComponent: () => import('./pages/proximamente/proximamente.component').then((m) => m.ProximamenteComponent),
-    data: { titulo: 'Gastos', descripcion: 'Administra y categoriza todos tus gastos en detalle.', icono: 'trending-down' },
+    loadComponent: () => import('./pages/gastos/gastos.component').then((m) => m.GastosComponent),
   },
   {
     path: 'movimientos',
@@ -33,14 +32,12 @@ export const routes: Routes = [
   {
     path: 'presupuestos',
     canActivate: [authGuard],
-    loadComponent: () => import('./pages/proximamente/proximamente.component').then((m) => m.ProximamenteComponent),
-    data: { titulo: 'Presupuestos', descripcion: 'Define límites mensuales por categoría y controla su gasto.', icono: 'pie-chart' },
+    loadComponent: () => import('./pages/presupuestos/presupuestos.component').then((m) => m.PresupuestosComponent),
   },
   {
     path: 'categorias',
     canActivate: [authGuard],
-    loadComponent: () => import('./pages/proximamente/proximamente.component').then((m) => m.ProximamenteComponent),
-    data: { titulo: 'Categorías', descripcion: 'Gestiona las categorías que organizan tus movimientos.', icono: 'tag' },
+    loadComponent: () => import('./pages/categorias/categorias.component').then((m) => m.CategoriasComponent),
   },
   {
     path: 'reportes',
