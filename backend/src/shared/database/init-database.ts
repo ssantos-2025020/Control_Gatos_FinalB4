@@ -59,16 +59,31 @@ async function crearTablas(): Promise<void> {
   // La tabla es nueva (se creó en esta versión con ids uuid por error) y
   // está vacía: se recrea con ids text, igual que el resto de tablas del
   // esquema (Prisma mapea @default(uuid()) a text).
-  await query(`DROP TABLE IF EXISTS presupuestos`);
-  await query(`
-    CREATE TABLE IF NOT EXISTS presupuestos (
-      id          text PRIMARY KEY DEFAULT gen_random_uuid()::text,
-      "categoriaId" text NOT NULL UNIQUE,
-      monto       numeric(10,2) NOT NULL,
-      "createdAt" timestamptz NOT NULL DEFAULT now(),
-      "updatedAt" timestamptz NOT NULL DEFAULT now()
-    )
-  `);
+  // Solo recrear la tabla si está vacía para evitar pérdida de datos en producción
+  const count = await query<{ count: string }>('SELECT COUNT(*)::text as count FROM presupuestos');
+  if (count[0]?.count === '0') {
+    await query(`DROP TABLE IF EXISTS presupuestos`);
+    await query(`
+      CREATE TABLE IF NOT EXISTS presupuestos (
+        id          text PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        "categoriaId" text NOT NULL UNIQUE,
+        monto       numeric(10,2) NOT NULL,
+        "createdAt" timestamptz NOT NULL DEFAULT now(),
+        "updatedAt" timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+  } else {
+    // Si la tabla tiene datos, solo asegurarse de que exista
+    await query(`
+      CREATE TABLE IF NOT EXISTS presupuestos (
+        id          text PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        "categoriaId" text NOT NULL UNIQUE,
+        monto       numeric(10,2) NOT NULL,
+        "createdAt" timestamptz NOT NULL DEFAULT now(),
+        "updatedAt" timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+  }
 
   // El módulo de ingresos guarda categoría y método como texto libre
   // (igual que la UI de la aplicación).
