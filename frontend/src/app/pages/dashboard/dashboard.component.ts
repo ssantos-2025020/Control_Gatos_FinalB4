@@ -14,13 +14,14 @@ import { CurrencyService } from '../../services/currency.service';
 import { ConfigService } from '../../services/config.service';
 import { FiltroFechaService } from '../../services/filtro-fecha.service';
 import { AlertaPresupuestoComponent } from '../../components/alerta-presupuesto/alerta-presupuesto.component';
+import { RadialProgressComponent } from '../../components/radial-progress/radial-progress.component';
 import { SelectorMesComponent } from '../../components/selector-mes/selector-mes.component';
-import { PRESUPUESTOS_BASE } from '../../services/mock-data';
+import { PRESUPUESTOS_BASE, PRESUPUESTO_TOTAL_BASE } from '../../services/mock-data';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink, RouterLinkActive, BaseChartDirective, LucideIconComponent, SidebarComponent, AlertaPresupuestoComponent, SelectorMesComponent],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink, RouterLinkActive, BaseChartDirective, LucideIconComponent, SidebarComponent, AlertaPresupuestoComponent, RadialProgressComponent, SelectorMesComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css',
 })
@@ -166,19 +167,21 @@ export class DashboardComponent implements OnInit {
     const diasEnMes = new Date(y, m, 0).getDate();
     const granularidad = this.filtroGranularidad();
 
+    // Cuando granularidad es 'mes', usamos el bar chart en su lugar
     if (granularidad === 'mes') {
       return { labels: [], datasets: [{ data: [] }] };
     }
 
     let labels: string[] = [];
     let acumulados: number[] = [];
+    let promedioMovil: number[] = [];
 
     if (granularidad === 'semana') {
       const semanasLabels: string[] = [];
       const semanasMontos: number[] = [];
       for (let d = 1; d <= diasEnMes; d += 7) {
         const fin = Math.min(d + 6, diasEnMes);
-        semanasLabels.push(`${d}-${fin}`);
+        semanasLabels.push(`Sem ${Math.ceil(d/7)}`);
         semanasMontos.push(0);
       }
       gastos.forEach((g) => {
@@ -188,6 +191,15 @@ export class DashboardComponent implements OnInit {
       });
       labels = semanasLabels;
       acumulados = semanasMontos;
+
+      // Promedio móvil de 2 semanas
+      for (let i = 0; i < acumulados.length; i++) {
+        if (i === 0) {
+          promedioMovil.push(acumulados[i]);
+        } else {
+          promedioMovil.push((acumulados[i] + acumulados[i-1]) / 2);
+        }
+      }
     } else {
       const gastosPorDia: number[] = new Array(diasEnMes).fill(0);
       gastos.forEach((g) => {
@@ -196,33 +208,78 @@ export class DashboardComponent implements OnInit {
       });
       labels = Array.from({ length: diasEnMes }, (_, i) => String(i + 1));
       acumulados = gastosPorDia;
+
+      // Promedio móvil de 3 días
+      for (let i = 0; i < acumulados.length; i++) {
+        if (i < 2) {
+          promedioMovil.push(acumulados[i]);
+        } else {
+          promedioMovil.push((acumulados[i] + acumulados[i-1] + acumulados[i-2]) / 3);
+        }
+      }
     }
 
     const converted = acumulados.map(v => this.currencyService.convertir(v));
+    const promedioConverted = promedioMovil.map(v => this.currencyService.convertir(v));
+
+    // Calcular promedio general para línea de referencia
+    const promedioGeneral = converted.reduce((a, b) => a + b, 0) / converted.length || 0;
+    const lineaPromedio = new Array(converted.length).fill(promedioGeneral);
 
     return {
       labels,
-      datasets: [{
-        data: converted,
-        borderColor: '#3b82f6',
-        backgroundColor: (ctx: any) => {
-          const chart = ctx.chart;
-          const { ctx: c, chartArea } = chart;
-          if (!chartArea) return 'rgba(59,130,246,0.1)';
-          const gradient = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-          gradient.addColorStop(0, 'rgba(59,130,246,0.25)');
-          gradient.addColorStop(1, 'rgba(59,130,246,0.01)');
-          return gradient;
+      datasets: [
+        {
+          type: 'line',
+          label: 'Gastos diarios',
+          data: converted,
+          borderColor: '#3b82f6',
+          backgroundColor: (ctx: any) => {
+            const chart = ctx.chart;
+            const { ctx: c, chartArea } = chart;
+            if (!chartArea) return 'rgba(59,130,246,0.1)';
+            const gradient = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+            gradient.addColorStop(0, 'rgba(59,130,246,0.4)');
+            gradient.addColorStop(1, 'rgba(59,130,246,0.05)');
+            return gradient;
+          },
+          fill: true,
+          tension: 0.4,
+          borderWidth: 3,
+          pointRadius: 2,
+          pointHoverRadius: 6,
+          pointBackgroundColor: '#3b82f6',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          order: 1,
         },
-        fill: true,
-        tension: 0.4,
-        borderWidth: 2.5,
-        pointRadius: 0,
-        pointHoverRadius: 6,
-        pointHoverBackgroundColor: '#3b82f6',
-        pointHoverBorderColor: '#fff',
-        pointHoverBorderWidth: 2,
-      }],
+        {
+          type: 'line',
+          label: 'Tendencia (promedio móvil)',
+          data: promedioConverted,
+          borderColor: '#f59e0b',
+          backgroundColor: 'transparent',
+          borderDash: [5, 5],
+          tension: 0.4,
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          pointBackgroundColor: '#f59e0b',
+          order: 2,
+        },
+        {
+          type: 'line',
+          label: 'Promedio del mes',
+          data: lineaPromedio,
+          borderColor: '#10b981',
+          backgroundColor: 'transparent',
+          borderDash: [10, 5],
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 0,
+          order: 3,
+        },
+      ],
     };
   });
 
@@ -233,9 +290,23 @@ export class DashboardComponent implements OnInit {
     const m = this.filtroFecha.mes();
     const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
     const total = gastos.reduce((s, g) => s + Number(g.monto), 0);
+
+    // Si no hay gastos, mostrar una barra vacía con el mensaje apropiado
     if (total === 0) {
-      return { labels: [], datasets: [{ data: [] }] };
+      return {
+        labels: [`${meses[m - 1]} ${y}`],
+        datasets: [{
+          data: [0],
+          backgroundColor: ['rgba(148,163,184,0.3)'],
+          borderColor: '#94a3b8',
+          borderRadius: 10,
+          borderSkipped: false,
+          maxBarThickness: 48,
+          barPercentage: 0.3,
+        }],
+      };
     }
+
     return {
       labels: [`${meses[m - 1]} ${y}`],
       datasets: [{
@@ -260,7 +331,19 @@ export class DashboardComponent implements OnInit {
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { display: false },
+        legend: {
+          display: true,
+          position: 'top',
+          align: 'end',
+          labels: {
+            color: '#94a3b8',
+            usePointStyle: true,
+            pointStyle: 'circle',
+            boxWidth: 8,
+            padding: 15,
+            font: { size: 11, family: 'Inter' },
+          },
+        },
         tooltip: {
           backgroundColor: '#1e293b',
           titleColor: '#94a3b8',
@@ -269,16 +352,22 @@ export class DashboardComponent implements OnInit {
           borderWidth: 1,
           cornerRadius: 10,
           padding: 12,
-          displayColors: false,
+          displayColors: true,
           callbacks: {
             title: (items: any) => {
               if (g === 'semana') return `Semana ${items[0].label} ${meses[m - 1]} ${y}`;
               if (g === 'mes') return items[0].label;
-              return `${items[0].label} ${y}`;
+              return `Día ${items[0].label} ${meses[m - 1]} ${y}`;
             },
             label: (item: any) => {
               const val = item.parsed?.y ?? item.parsed;
-              return this.currencyService.formatearValor(Number(val));
+              const dataset = item.dataset;
+              let label = dataset.label || '';
+              if (label) {
+                label += ': ';
+              }
+              label += this.currencyService.formatearValor(Number(val));
+              return label;
             },
           },
         },
@@ -286,7 +375,7 @@ export class DashboardComponent implements OnInit {
       scales: {
         x: {
           grid: { color: 'rgba(255,255,255,0.04)', drawTicks: false },
-          ticks: { color: '#475569', font: { size: 10, family: 'Inter' }, maxTicksLimit: 10, padding: 8 },
+          ticks: { color: '#475569', font: { size: 10, family: 'Inter' }, maxTicksLimit: 12, padding: 8 },
           border: { display: false },
         },
         y: {
@@ -315,9 +404,10 @@ export class DashboardComponent implements OnInit {
         data: cats.map(c => this.currencyService.convertir(c.amountUSD)),
         backgroundColor: cats.map(c => c.color),
         borderColor: '#111827',
-        borderWidth: 1,
+        borderWidth: 2,
         hoverBorderColor: '#1e293b',
-        hoverOffset: 6,
+        hoverOffset: 10,
+        hoverBorderWidth: 3,
       }],
     };
   });
@@ -325,28 +415,78 @@ export class DashboardComponent implements OnInit {
   donutChartOptions = computed<ChartOptions<'doughnut'>>(() => ({
     responsive: true,
     maintainAspectRatio: false,
-    cutout: '62%',
+    cutout: '65%',
     plugins: {
       legend: { display: false },
       tooltip: {
         backgroundColor: '#1e293b',
         titleColor: '#94a3b8',
         bodyColor: '#f1f5f9',
-        borderColor: 'rgba(255,255,255,0.1)',
+        borderColor: 'rgba(255,255,255,0.15)',
         borderWidth: 1,
-        cornerRadius: 10,
-        padding: 12,
+        cornerRadius: 12,
+        padding: 16,
+        displayColors: true,
+        boxPadding: 6,
         callbacks: {
+          title: (item: any) => {
+            const cat = this.gastosPorCategoriaPeriodo()[item.dataIndex];
+            return cat?.name || 'Categoría';
+          },
           label: (item: any) => {
             const val = item.parsed;
             const total = this.totalGastadoPeriodoUSD();
-            const pct = total > 0 ? Math.round((this.gastosPorCategoriaPeriodo()[item.dataIndex].amountUSD / total) * 100) : 0;
-            return `${this.currencyService.formatearValor(Number(val))} (${pct}%)`;
+            const cat = this.gastosPorCategoriaPeriodo()[item.dataIndex];
+            const pct = total > 0 ? Math.round((cat?.amountUSD / total) * 100) : 0;
+            const formatted = this.currencyService.formatearValor(Number(val));
+            return [
+              `Gastado: ${formatted}`,
+              `Porcentaje: ${pct}%`,
+              `Presupuesto: ${this.currencyService.formatear(cat?.amountUSD * 1.5 || 0)}`,
+            ];
           },
         },
       },
+      animation: {
+        animateScale: true,
+        animateRotate: true,
+        duration: 1000,
+        easing: 'easeOutQuart',
+      },
     },
   }));
+
+  // Métodos helper para validación segura en templates
+  hasBarChartData(): boolean {
+    const data = this.barChartData();
+    return data.datasets && data.datasets[0] && data.datasets[0].data && data.datasets[0].data.length > 0;
+  }
+
+  hasLineChartData(): boolean {
+    const data = this.lineChartData();
+    return data.datasets && data.datasets[0] && data.datasets[0].data && data.datasets[0].data.length > 0;
+  }
+
+  hasDonutChartData(): boolean {
+    const data = this.donutChartData();
+    return data.datasets && data.datasets[0] && data.datasets[0].data && data.datasets[0].data.length > 0;
+  }
+
+  getBarChartDataLength(): number {
+    return this.hasBarChartData() ? this.barChartData().datasets[0].data.length : 0;
+  }
+
+  getLineChartDataLength(): number {
+    return this.hasLineChartData() ? this.lineChartData().datasets[0].data.length : 0;
+  }
+
+  hasChartDataForGranularidad(): boolean {
+    const gran = this.filtroGranularidad();
+    if (gran === 'mes') {
+      return this.hasBarChartData();
+    }
+    return this.hasLineChartData();
+  }
 
   // ===== Otros computed =====
   movimientosRecientes = computed(() => {
@@ -429,6 +569,17 @@ export class DashboardComponent implements OnInit {
       };
     });
   });
+
+  presupuestoTotales = computed(() => {
+    const items = this.presupuestos();
+    const usado = items.reduce((s, p) => s + p.gastadoNum, 0);
+    const limite = Math.max(items.reduce((s, p) => s + p.limiteNum, 0), PRESUPUESTO_TOTAL_BASE);
+    const pct = limite > 0 ? Math.round((usado / limite) * 1000) / 10 : 0;
+    return { usado, limite, pct };
+  });
+
+  presupuestoTotalLimite = computed(() =>
+    this.currencyService.formatear(this.presupuestoTotales().limite));
 
   presupuestosVisibles = computed(() => this.presupuestos().slice(0, 5));
 
@@ -529,7 +680,7 @@ export class DashboardComponent implements OnInit {
     this.gastoForm.reset({
       descripcion: '',
       monto: '',
-      fecha: new Date().toISOString().substring(0, 10),
+      fecha: this.filtroFecha.hoyIso(),
       categoriaId: this.categorias().length > 0 ? this.categorias()[0].id : '',
     });
     this.mostrarGastoModal.set(true);
