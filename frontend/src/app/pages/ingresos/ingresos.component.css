@@ -130,36 +130,7 @@
   font-weight: 700;
 }
 
-/* ─── Acciones: editar (naranja) / eliminar (rojo) translúcidos ─── */
-.btn-edit-ic {
-  background: rgba(251, 146, 60, 0.15);
-  color: #fb923c;
-  border-radius: 50%;
-  padding: 7px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.15s;
-}
-
-.btn-edit-ic:hover {
-  background: rgba(251, 146, 60, 0.3);
-}
-
-.btn-del-ic {
-  background: rgba(244, 63, 94, 0.15);
-  color: #f43f5e;
-  border-radius: 50%;
-  padding: 7px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.15s;
-}
-
-.btn-del-ic:hover {
-  background: rgba(244, 63, 94, 0.3);
-}
+/* ─── Acciones: planas como en Categorías (heredan color) ─── */
 
 /* ─── Footer: card de total a la izquierda ─── */
 .ingresos-total {
