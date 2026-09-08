@@ -1,0 +1,367 @@
+<div class="app-shell">
+  <app-sidebar></app-sidebar>
+
+  <!-- Área principal -->
+  <div class="main-area">
+    <header class="topbar">
+      <div class="topbar-left">
+        <h2 class="page-title">Gastos</h2>
+        <p class="page-subtitle">Controla y analiza los egresos del período.</p>
+      </div>
+      <div class="topbar-right">
+        <button (click)="abrirNuevoModal()" class="btn-primary"><lucide-icon [name]="'plus'" [size]="16"></lucide-icon> Nuevo Gasto</button>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <div *ngIf="errorMsg()" class="alert-error"><lucide-icon [name]="'triangle-alert'" [size]="16"></lucide-icon> {{ errorMsg() }}</div>
+
+      <!-- Tarjetas de resumen -->
+      <section class="stats-grid">
+        <div class="stat-card card-blue"><div class="stat-icon-wrap blue"><lucide-icon name="wallet" [size]="22"></lucide-icon></div><div class="stat-content"><span class="stat-label">TOTAL GASTOS</span><span class="stat-value red-text">{{ totalGastadoPeriodo() }}</span><span class="stat-change neutral">Este mes</span></div></div>
+        <div class="stat-card card-green"><div class="stat-icon-wrap green"><lucide-icon name="trending-down" [size]="22"></lucide-icon></div><div class="stat-content"><span class="stat-label">PROMEDIO DIARIO</span><span class="stat-value green-text">{{ promedioGasto() }}</span><span class="stat-change neutral">Este mes</span></div></div>
+        <div class="stat-card"><div class="stat-icon-wrap purple"><lucide-icon name="calendar" [size]="22"></lucide-icon></div><div class="stat-content"><span class="stat-label">ÚLTIMO GASTO</span><span class="stat-value">{{ ultimoGasto() ? currencyService.formatear(ultimoGasto()!.monto) : '—' }}</span><span class="stat-change neutral">{{ ultimoGasto() ? configService.formatearFecha(ultimoGasto()!.fecha) : 'Sin registros' }}</span></div></div>
+        <div class="stat-card card-red"><div class="stat-icon-wrap red"><lucide-icon name="trending-up" [size]="22"></lucide-icon></div><div class="stat-content"><span class="stat-label">COMPARACIÓN</span><span class="stat-value comparacion-valor" [class.up]="comparacionTexto().clase === 'up'">{{ comparacionTexto().valor }}</span><span class="stat-change neutral">vs mes anterior</span></div></div>
+      </section>
+
+      <!-- Gráficos -->
+      <section class="charts-row" *ngIf="!cargando() && gastosPeriodo().length > 0">
+        <div class="glass-card chart-panel">
+          <div class="panel-header">
+            <div class="panel-title">Evolución de gastos</div>
+            <select class="evol-select" [ngModel]="evolucionModo()" (ngModelChange)="evolucionModo.set($event)">
+              <option value="dia">Por día</option>
+              <option value="semana">Por semana</option>
+              <option value="total">Total</option>
+            </select>
+          </div>
+          <div class="chart-container" style="height: 230px;">
+            <canvas baseChart [type]="evolucionChartType()" [data]="evolucionLineData()" [options]="evolucionLineOptions()" *ngIf="(evolucionLineData().labels?.length ?? 0) > 0"></canvas>
+            <div class="no-stats" *ngIf="(evolucionLineData().labels?.length ?? 0) === 0">Sin registros en el rango actual.</div>
+          </div>
+        </div>
+
+        <div class="glass-card chart-panel">
+          <div class="panel-header">
+            <div class="panel-title">Gastos por categoría</div>
+            <span class="panel-badge">{{ desglose().length }} categorías</span>
+          </div>
+          <div class="donut-layout" *ngIf="desglose().length > 0">
+            <div class="donut-chart-wrap" style="width: 170px; height: 170px;">
+              <canvas baseChart [type]="'doughnut'" [data]="donutGastosData()" [options]="donutGastosOptions()"></canvas>
+              <div class="donut-center-total">
+                <span class="dct-label">Total</span>
+                <span class="dct-value">{{ totalGastadoPeriodo() }}</span>
+              </div>
+            </div>
+            <div class="donut-legend">
+              <div *ngFor="let d of desglose()" class="legend-item">
+                <span class="legend-dot" [style.background]="d.color"></span>
+                <span class="legend-name">{{ d.nombre }}</span>
+                <span class="legend-amount">{{ currencyService.formatear(d.monto) }}</span>
+                <span class="legend-pct">{{ d.porcentaje }}%</span>
+              </div>
+            </div>
+          </div>
+          <div class="no-stats" *ngIf="desglose().length === 0">Sin datos de gastos.</div>
+        </div>
+
+        <div class="glass-card chart-panel">
+          <div class="panel-header">
+            <div class="panel-title">Métodos de pago</div>
+            <span class="panel-badge">{{ desgloseMetodos().length }} métodos</span>
+          </div>
+          <div class="donut-layout" *ngIf="desgloseMetodos().length > 0">
+            <div class="donut-chart-wrap" style="width: 170px; height: 170px;">
+              <canvas baseChart [type]="'doughnut'" [data]="donutMetodosData()" [options]="donutMetodosOptions()"></canvas>
+            </div>
+            <div class="donut-legend">
+              <div *ngFor="let d of desgloseMetodos()" class="legend-item">
+                <span class="legend-dot" [style.background]="d.color"></span>
+                <span class="legend-name">{{ d.nombre }}</span>
+                <span class="legend-amount">{{ currencyService.formatear(d.monto) }}</span>
+                <span class="legend-pct">{{ d.porcentaje }}%</span>
+              </div>
+            </div>
+          </div>
+          <div class="no-stats" *ngIf="desgloseMetodos().length === 0">Sin datos de gastos.</div>
+        </div>
+      </section>
+
+      <!-- Barra de filtros -->
+      <section class="action-bar glass-card">
+        <div class="filters-group">
+          <div class="search-field search-right">
+            <input
+              type="text"
+              [ngModel]="filtroSearch()"
+              (ngModelChange)="filtroSearch.set($event); onFiltroCambio()"
+              placeholder="Buscar por descripción..."
+              class="input-filter"
+            />
+            <span class="search-icon right"><lucide-icon [name]="'search'" [size]="15"></lucide-icon></span>
+          </div>
+          <select
+            class="input-filter select-filter"
+            [ngModel]="filtroCategoriaId()"
+            (ngModelChange)="filtroCategoriaId.set($event); onFiltroCambio()"
+          >
+            <option value="">Todas las categorías</option>
+            <option *ngFor="let c of categorias()" [value]="c.id">{{ c.nombre }}</option>
+          </select>
+          <select
+            class="input-filter select-filter"
+            [ngModel]="filtroUsuario()"
+            (ngModelChange)="filtroUsuario.set($event); onFiltroCambio()"
+          >
+            <option value="">Todos los usuarios</option>
+            <option *ngFor="let u of usuarios()" [value]="u.nombre">{{ u.nombre }}</option>
+          </select>
+          <div class="date-fields">
+            <div class="date-field">
+              <span class="date-icon"><lucide-icon [name]="'calendar'" [size]="15"></lucide-icon></span>
+              <input
+                type="date"
+                [ngModel]="filtroFechaInicio()"
+                (ngModelChange)="filtroFechaInicio.set($event); onFiltroCambio()"
+                class="input-filter input-date"
+                title="Fecha desde"
+              />
+            </div>
+            <span class="date-sep">a</span>
+            <div class="date-field">
+              <span class="date-icon"><lucide-icon [name]="'calendar'" [size]="15"></lucide-icon></span>
+              <input
+                type="date"
+                [ngModel]="filtroFechaFin()"
+                (ngModelChange)="filtroFechaFin.set($event); onFiltroCambio()"
+                class="input-filter input-date"
+                title="Fecha hasta"
+              />
+            </div>
+            <button type="button" class="btn-reset-date" title="Restablecer al mes actual" (click)="resetRango()">
+              <lucide-icon [name]="'refresh-cw'" [size]="14"></lucide-icon>
+            </button>
+          </div>
+          <button (click)="limpiarFiltros()" class="btn-link-clean" title="Limpiar filtros"><lucide-icon [name]="'refresh-cw'" [size]="14"></lucide-icon> Limpiar</button>
+            <button *ngIf="filtrosAnteriores.visible()" (click)="restaurarFiltrosAnteriores()" class="btn-link-clean" title="Restaurar filtro anterior" style="margin-left: 10px;"><lucide-icon [name]="'history'" [size]="14"></lucide-icon> Restaurar filtro anterior</button>
+        </div>
+      </section>
+
+      <!-- Tabla de gastos -->
+      <section class="expenses-section glass-card">
+        <div *ngIf="cargando() && gastos().length === 0" class="loading-state">
+          <img src="assets/Logo sinfondo.png" alt="Legatus" class="loading-logo" />
+          <div class="spinner"></div>
+          <p>Cargando gastos...</p>
+        </div>
+
+        <div *ngIf="!cargando() && gastosFiltrados().length === 0 && !errorMsg()" class="empty-state">
+          <span class="empty-icon"><lucide-icon [name]="'trending-down'" [size]="30"></lucide-icon></span>
+          <h3>No se encontraron gastos</h3>
+          <p>Ajusta los filtros o registra un nuevo gasto.</p>
+        </div>
+
+        <div *ngIf="gastosFiltrados().length > 0" class="table-responsive">
+          <table class="expenses-table">
+            <thead>
+              <tr>
+                <th>Descripción</th>
+                <th>Categoría</th>
+                <th>Fecha</th>
+                <th>Usuario</th>
+                <th class="text-right">Monto</th>
+                <th>Método</th>
+                <th class="text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let g of gastosPaginados()">
+                <td>
+                  <div class="cat-cell">
+                    <span class="cat-icon-box" [style.background]="colorCategoria(g.categoria.nombre) + '22'" [style.color]="colorCategoria(g.categoria.nombre)">
+                      <lucide-icon [name]="g.categoria.icono || 'receipt'" [size]="14"></lucide-icon>
+                    </span>
+                    <span class="cat-name-main">{{ g.descripcion }}</span>
+                  </div>
+                </td>
+                <td>
+                  <span
+                    class="badge-cat"
+                    [style.background]="colorCategoria(g.categoria.nombre) + '1f'"
+                    [style.color]="colorCategoria(g.categoria.nombre)"
+                    [style.border-color]="colorCategoria(g.categoria.nombre) + '3d'"
+                  >{{ g.categoria.nombre || 'Sin categoría' }}</span>
+                </td>
+                <td>
+                  <div class="fecha-linea">{{ configService.formatearFecha(g.fecha) }}</div>
+                  <div class="fecha-hora">{{ configService.formatearHora(g.fecha) }}</div>
+                </td>
+                <td>
+                  <span class="user-badge">
+                    <span class="user-avatar" [style.background]="g.usuario?.color || '#1268ff'">{{ inicialUsuario(g.usuario?.nombre) }}</span>
+                    {{ g.usuario?.nombre || '—' }}
+                  </span>
+                </td>
+                <td class="gasto-amount text-right">{{ currencyService.formatear(g.monto) }}</td>
+                <td>
+                  <span
+                    class="badge-method"
+                    [style.background]="colorMetodo(g.metodo) + '1f'"
+                    [style.color]="colorMetodo(g.metodo)"
+                    [style.border-color]="colorMetodo(g.metodo) + '3d'"
+                  >{{ g.metodo }}</span>
+                </td>
+                <td class="actions-col text-center">
+                  <button (click)="abrirEditarModal(g)" class="btn-action btn-edit-ic" title="Editar"><lucide-icon [name]="'pencil'" [size]="14"></lucide-icon></button>
+                  <button (click)="solicitarEliminar(g)" class="btn-action btn-del-ic" title="Eliminar"><lucide-icon [name]="'trash-2'" [size]="14"></lucide-icon></button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Footer de tabla: info + paginación + total + exportar -->
+        <div class="table-footer" *ngIf="gastosFiltrados().length > 0">
+          <div class="table-footer-info">
+            <span>Mostrando {{ ((pagina()-1)*porPagina)+1 }} a {{ Math.min(pagina()*porPagina, gastosFiltrados().length) }} de {{ gastosFiltrados().length }} resultados</span>
+          </div>
+
+          <div class="paginacion-nums">
+            <button class="page-arrow" (click)="paginaAnterior()" [disabled]="pagina() === 1" title="Anterior"><lucide-icon [name]="'chevron-left'" [size]="14"></lucide-icon></button>
+            <button *ngFor="let p of paginas()" class="page-btn" [class.active]="p === pagina()" (click)="irPagina(p)">{{ p }}</button>
+            <button class="page-arrow" (click)="paginaSiguiente()" [disabled]="pagina() === totalPaginas()" title="Siguiente"><lucide-icon [name]="'chevron-right'" [size]="14"></lucide-icon></button>
+          </div>
+
+          <div class="footer-right">
+            <div class="total-gastos-card">
+              <span class="tg-label">Total gastos</span>
+              <span class="tg-value">{{ totalGastado() }}</span>
+            </div>
+            <button (click)="exportarCSV()" class="btn-export"><lucide-icon [name]="'download'" [size]="15"></lucide-icon> Exportar</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal crear / editar -->
+  <div class="modal-backdrop" *ngIf="mostrarModal()" (keydown.escape)="cerrarModal()">
+    <div class="modal-container glass-card" (keydown)="onModalKeydown($event)">
+      <div class="modal-header">
+        <h2>{{ gastoEditando() ? 'Editar Gasto' : 'Nuevo Gasto' }}</h2>
+        <button (click)="cerrarModal()" class="btn-close-modal">&times;</button>
+      </div>
+
+      <form [formGroup]="gastoForm" (ngSubmit)="guardarGasto()" class="modal-form">
+        <div class="form-field">
+          <label for="descripcion">
+            <lucide-icon [name]="'tag'" [size]="14" class="field-icon"></lucide-icon> Descripción
+          </label>
+          <input id="descripcion" type="text" formControlName="descripcion" placeholder="Ej. Compra de supermercado" class="form-input" />
+          <div *ngIf="gastoForm.get('descripcion')?.touched && gastoForm.get('descripcion')?.invalid" class="form-error">
+            La descripción es obligatoria (mín. 3, máx. 100 caracteres).
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-field">
+            <label for="categoriaId">
+              <lucide-icon [name]="'folder-tag'" [size]="14" class="field-icon"></lucide-icon> Categoría
+            </label>
+            <div class="input-with-preview">
+              <span class="cat-dot" [style.background]="colorCategoriaSeleccionada()"></span>
+              <select id="categoriaId" formControlName="categoriaId" class="form-input form-input--with-preview">
+                <option value="" disabled>Selecciona categoría</option>
+                <option *ngFor="let cat of categorias()" [value]="cat.id">{{ cat.nombre }}</option>
+              </select>
+            </div>
+            <div *ngIf="gastoForm.get('categoriaId')?.touched && gastoForm.get('categoriaId')?.invalid" class="form-error">
+              La categoría es obligatoria.
+            </div>
+          </div>
+          <div class="form-field">
+            <label for="metodo">
+              <lucide-icon [name]="'credit-card'" [size]="14" class="field-icon"></lucide-icon> Método de pago
+            </label>
+            <select id="metodo" formControlName="metodo" class="form-input">
+              <option value="Efectivo">Efectivo</option>
+              <option value="Tarjeta">Tarjeta</option>
+              <option value="Transferencia">Transferencia</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-field">
+            <label for="monto">
+              <lucide-icon [name]="'circle-dollar-sign'" [size]="14" class="field-icon"></lucide-icon> Monto ({{ currencyService.getSimbolo() }})
+            </label>
+            <div class="input-wrap">
+              <span class="input-symbol">{{ currencyService.getSimbolo() }}</span>
+              <input id="monto" type="text" inputmode="decimal" formControlName="monto" placeholder="0.00" class="form-input form-input--symbol" (input)="onMontoInput($event)" />
+            </div>
+            <div *ngIf="gastoForm.get('monto')?.touched && gastoForm.get('monto')?.invalid" class="form-error">
+              <ng-container *ngIf="gastoForm.get('monto')?.errors?.['maxDecimales']">El monto admite hasta 2 decimales.</ng-container>
+              <ng-container *ngIf="!gastoForm.get('monto')?.errors?.['maxDecimales']">Monto obligatorio y mayor a 0.</ng-container>
+            </div>
+          </div>
+          <div class="form-field">
+            <label for="fecha">
+              <lucide-icon [name]="'calendar'" [size]="14" class="field-icon"></lucide-icon> Fecha
+            </label>
+            <input id="fecha" type="date" formControlName="fecha" class="form-input" [max]="fechaMaxima()" />
+            <div *ngIf="gastoForm.get('fecha')?.touched && gastoForm.get('fecha')?.invalid" class="form-error">
+              <ng-container *ngIf="gastoForm.get('fecha')?.errors?.['fechaFutura']">No se permiten fechas futuras.</ng-container>
+              <ng-container *ngIf="!gastoForm.get('fecha')?.errors?.['fechaFutura']">La fecha es obligatoria.</ng-container>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label for="usuarioId">
+            <lucide-icon [name]="'user'" [size]="14" class="field-icon"></lucide-icon> Usuario
+          </label>
+          <select id="usuarioId" formControlName="usuarioId" class="form-input">
+            <option value="">Sin asignar</option>
+            <option *ngFor="let u of usuarios()" [value]="u.id">{{ u.nombre }}</option>
+          </select>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" (click)="cerrarModal()" class="btn-secondary">Cancelar</button>
+          <button type="submit" class="btn-primary" [disabled]="gastoForm.invalid || guardando()">
+            <span *ngIf="guardando()" class="spinner-sm"></span>
+            {{ gastoEditando() ? 'Guardar cambios' : 'Guardar Gasto' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal confirmar eliminar -->
+  <div class="modal-backdrop" *ngIf="mostrarConfirmacion()">
+    <div class="modal-container modal-sm glass-card">
+      <div class="modal-header">
+        <h2>Eliminar gasto</h2>
+        <button (click)="cancelarEliminar()" class="btn-close-modal">&times;</button>
+      </div>
+      <div class="modal-confirm-body">
+        <p>¿Estás seguro de que deseas eliminar el gasto <strong>"{{ gastoAEliminar()?.descripcion }}"</strong>?</p>
+        <p class="confirm-monto">{{ currencyService.formatear(gastoAEliminar()?.monto ?? 0) }}</p>
+        <p class="confirm-warning">Esta acción no se puede deshacer.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" (click)="cancelarEliminar()" class="btn-secondary">Cancelar</button>
+        <button type="button" (click)="confirmarEliminar()" class="btn-danger">Eliminar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast de éxito -->
+  <div class="gastos-toast" *ngIf="toast()">
+    <lucide-icon [name]="'check-circle'" [size]="16"></lucide-icon>
+    <span>{{ toast() }}</span>
+    <button type="button" class="gastos-toast-close" (click)="toast.set(null)" title="Cerrar">&times;</button>
+  </div>
+</div>

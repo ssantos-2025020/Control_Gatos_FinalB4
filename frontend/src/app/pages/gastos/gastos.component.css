@@ -1,0 +1,671 @@
+/* ===== Desglose por categoría ===== */
+.desglose-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100%;
+  padding: 18px 20px;
+}
+
+.desglose-title {
+  margin: 0 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.desglose-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.desglose-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  background: var(--blue-bg);
+  border: 1px solid rgba(1, 159, 252, 0.25);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--blue-light);
+  white-space: nowrap;
+}
+
+.chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.desglose-vacio {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* ===== Filtros: íconos e inputs ===== */
+.search-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon,
+.date-icon {
+  position: absolute;
+  font-size: 13px;
+  color: var(--text-muted);
+  pointer-events: none;
+  left: 12px;
+  z-index: 1;
+}
+
+.search-field .input-filter {
+  padding-left: 34px;
+}
+
+/* Lupa a la derecha (Ingresos la tiene a la izquierda; Gastos a la derecha) */
+.search-field.search-right .input-filter {
+  padding-left: 12px;
+  padding-right: 34px;
+}
+
+.search-field.search-right .search-icon {
+  left: auto;
+  right: 12px;
+  transform: none;
+}
+
+.select-filter {
+  min-width: 200px;
+  cursor: pointer;
+}
+
+.date-fields {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.date-fields .date-icon {
+  left: 10px;
+}
+
+.date-fields .input-date:first-of-type {
+  padding-left: 32px;
+}
+
+/* ===== Botón Limpiar (texto celeste) ===== */
+.btn-link-clean {
+  background: transparent;
+  border: none;
+  color: var(--blue-soft);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 10px;
+  border-radius: 8px;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.btn-link-clean:hover {
+  background: rgba(56, 189, 248, 0.12);
+}
+
+/* ===== Badge de categoría ===== */
+.cat-badge {
+  display: inline-block;
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0b1220;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* ===== Paginación ===== */
+.paginacion {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+/* ===== Footer de tabla ===== */
+.table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.table-footer-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.table-footer-total strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.table-footer .paginacion {
+  margin-top: 0;
+}
+
+/* ===== Punto de color del usuario ===== */
+.user-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.user-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.pagina-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* ===== Modal pequeño / confirmación ===== */
+.modal-sm {
+  max-width: 420px;
+}
+
+.modal-confirm-body {
+  padding: 8px 22px 4px;
+  color: var(--text-slate-300);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.modal-confirm-body strong {
+  color: var(--text-primary);
+}
+
+.confirm-monto {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--blue-soft);
+  margin: 10px 0 4px;
+}
+
+.confirm-warning {
+  color: var(--red-light);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.btn-danger {
+  background: var(--red-solid);
+  border: none;
+  color: var(--text-white);
+  padding: 9px 18px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-danger:hover {
+  background: var(--red-dark);
+}
+
+/* Pequeña etiqueta en tarjetas de resumen */
+.stat-label {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+/* Chip de ícono en tarjetas de resumen */
+.stat-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stat-icon.cyan { background: var(--cyan-icon-bg); color: var(--cyan); }
+.stat-icon.indigo { background: rgba(129, 140, 248, 0.12); color: #818cf8; }
+
+/* ===== Ajustes página Gastos ===== */
+
+/* Ícono morado para ÚLTIMO GASTO */
+.stat-icon-wrap.purple {
+  background: rgba(168, 85, 247, 0.15);
+  color: #a855f7;
+}
+
+/* Comparación (tendencia) — por defecto roja (gastos) */
+.comparacion-valor {
+  color: var(--red);
+}
+
+.comparacion-valor.up {
+  color: var(--green);
+}
+
+/* Fecha con calendario por input */
+.date-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.date-field .date-icon {
+  left: 10px;
+}
+
+.date-field .input-date {
+  padding-left: 32px;
+}
+
+/* Botón reset del rango de fechas */
+.btn-reset-date {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-reset-date:hover {
+  color: var(--blue-light);
+  border-color: var(--blue-border);
+}
+
+/* Botón Limpiar (mismo diseño que Ingresos: texto celeste) */
+.btn-link-clean {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: transparent;
+  border: none;
+  color: var(--blue-soft);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 10px;
+  border-radius: 8px;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.btn-link-clean:hover {
+  background: rgba(56, 189, 248, 0.12);
+}
+
+/* Dropdown de modo de evolución */
+.evol-select {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 5px 9px;
+  cursor: pointer;
+}
+
+/* Total al centro de la dona de categorías */
+.donut-chart-wrap {
+  position: relative;
+}
+
+.donut-center-total {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  gap: 2px;
+}
+
+.dct-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+}
+
+.dct-value {
+  font-family: 'Outfit', sans-serif;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-white);
+}
+
+/* Tabla: badges de categoría y método (translúcidos) */
+.badge-cat,
+.badge-method {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+/* Descripción: ícono cuadrado de color + texto */
+.cat-icon-box {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Fecha + hora (dos líneas) */
+.fecha-linea {
+  color: var(--text-heading);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.fecha-hora {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Usuario: avatar circular + nombre */
+.user-avatar {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(18, 104, 255, 0.35);
+}
+
+/* Acciones: editar (naranja) / eliminar (rojo) translúcidos */
+.btn-edit-ic {
+  background: rgba(251, 146, 60, 0.15);
+  color: #fb923c;
+  border-radius: 50%;
+  padding: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s;
+}
+
+.btn-edit-ic:hover {
+  background: rgba(251, 146, 60, 0.3);
+}
+
+.btn-del-ic {
+  background: rgba(244, 63, 94, 0.15);
+  color: #f43f5e;
+  border-radius: 50%;
+  padding: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s;
+}
+
+.btn-del-ic:hover {
+  background: rgba(244, 63, 94, 0.3);
+}
+
+/* Paginación numerada */
+.paginacion-nums {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.page-btn {
+  min-width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.page-btn:hover {
+  border-color: var(--blue-border);
+  color: var(--blue-light);
+}
+
+.page-btn.active {
+  background: var(--gradient-brand);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(18, 104, 255, 0.4);
+}
+
+.page-arrow {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.page-arrow:hover:not(:disabled) {
+  border-color: var(--blue-border);
+  color: var(--blue-light);
+}
+
+.page-arrow:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Footer: derecha (card total + exportar) */
+.footer-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.total-gastos-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+}
+
+.tg-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.tg-value {
+  font-family: 'Outfit', sans-serif;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--red);
+}
+
+.btn-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: transparent;
+  border: 1px solid var(--blue-border);
+  color: var(--blue-light);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 9px 14px;
+  border-radius: 9px;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.btn-export:hover {
+  background: var(--blue-bg);
+}
+
+/* Monto de gasto en rojo */
+.gasto-amount {
+  color: var(--red);
+  font-weight: 700;
+}
+
+/* Pie de tabla: alinear contenido */
+.table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.table-footer-info {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* ===== Mejoras UX del modal Nuevo/Editar Gasto ===== */
+.field-icon {
+  vertical-align: -2px;
+  opacity: 0.8;
+}
+
+.input-with-preview {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.cat-dot {
+  position: absolute;
+  left: 12px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  z-index: 1;
+  pointer-events: none;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.06);
+}
+
+.form-input--with-preview {
+  padding-left: 30px;
+}
+
+/* Spinner pequeño dentro del botón de guardar */
+.spinner-sm {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: -2px;
+  margin-right: 6px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Toast de confirmación */
+.gastos-toast {
+  position: fixed;
+  top: 22px;
+  right: 24px;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(0, 231, 168, 0.12);
+  border: 1px solid rgba(0, 231, 168, 0.4);
+  color: var(--green, #00e7a8);
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(8px);
+  animation: gastos-toast-in 0.25s ease-out;
+}
+
+@keyframes gastos-toast-in {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.gastos-toast-close {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+  opacity: 0.7;
+}
+
+.gastos-toast-close:hover { opacity: 1; }
