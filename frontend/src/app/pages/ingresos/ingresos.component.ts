@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, computed, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -27,9 +27,13 @@ interface ComparacionTexto {
   templateUrl: './ingresos.component.html',
   styleUrls: ['../dashboard/dashboard.component.css', './ingresos.component.css'],
 })
-export class IngresosComponent implements OnInit {
+export class IngresosComponent implements OnInit, OnDestroy {
   Math = Math;
   catIngresos = CATEGORIAS_INGRESO;
+
+  guardando = signal(false);
+  toast = signal<string | null>(null);
+  private toastTimer: ReturnType<typeof setTimeout> | null = null;
 
   private authService = inject(AuthService);
   private ingresosService = inject(IngresosService);
@@ -215,8 +219,8 @@ export class IngresosComponent implements OnInit {
 
   ngOnInit(): void {
     this.ingresoForm = this.fb.group({
-      descripcion: ['', [Validators.required, Validators.maxLength(100)]],
-      monto: ['', [Validators.required, Validators.min(0.01)]],
+      descripcion: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(100)]],
+      monto: ['', [Validators.required, Validators.min(0.01), this.maxDosDecimalesValidator()]],
       fecha: [this.filtroFecha.hoyIso(), [Validators.required]],
       categoria: [''],
       metodo: ['Transferencia'],
@@ -225,6 +229,63 @@ export class IngresosComponent implements OnInit {
     this.filtroFechaInicio.set(this.mesInicioIso());
     this.filtroFechaFin.set(this.mesFinIso());
     this.cargarDatos();
+  }
+
+  ngOnDestroy(): void {
+    if (this.toastTimer !== null) {
+      clearTimeout(this.toastTimer);
+      this.toastTimer = null;
+    }
+  }
+
+  /** Validador: el monto no debe superar 2 decimales. */
+  private maxDosDecimalesValidator(): (control: { value: unknown }) => { [key: string]: boolean } | null {
+    return (control: { value: unknown }) => {
+      const v = control.value;
+      if (v === null || v === undefined || v === '') return null;
+      const s = String(v);
+      const m = s.match(/\.(\d+)$/);
+      if (m && m[1].length > 2) {
+        return { maxDecimales: true };
+      }
+      return null;
+    };
+  }
+
+  /** Formatea el monto con separador de miles y hasta 2 decimales (solo visual). */
+  formatMontoInput(valor: string): string {
+    let limpio = valor.replace(/[^\d.]/g, '');
+    const partes = limpio.split('.');
+    if (partes.length > 2) {
+      limpio = partes[0] + '.' + partes.slice(1).join('');
+    }
+    if (partes[1] !== undefined && partes[1].length > 2) {
+      limpio = partes[0] + '.' + partes[1].slice(0, 2);
+    }
+    const [entero, decimal] = limpio.split('.');
+    const conMiles = entero ? entero.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : entero;
+    return decimal !== undefined ? `${conMiles}.${decimal}` : conMiles;
+  }
+
+  onMontoInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const formateado = this.formatMontoInput(input.value);
+    this.ingresoForm.get('monto')?.setValue(formateado, { emitEvent: false });
+    input.value = formateado;
+  }
+
+  /** Muestra una notificación tipo toast. */
+  private mostrarToast(msg: string): void {
+    this.toast.set(msg);
+    if (this.toastTimer !== null) clearTimeout(this.toastTimer);
+    this.toastTimer = setTimeout(() => this.toast.set(null), 2800);
+  }
+
+  /** Cierra el modal con la tecla Escape y evita propagación. */
+  onModalKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      this.cerrarModal();
+    }
   }
 
   public cargarDatos(): void {
@@ -308,6 +369,7 @@ export class IngresosComponent implements OnInit {
   // ===== Modal crear / editar =====
   public abrirNuevoModal(): void {
     this.ingresoEditando.set(null);
+    this.guardando.set(false);
     this.ingresoForm.reset({
       descripcion: '',
       monto: '',
@@ -321,9 +383,10 @@ export class IngresosComponent implements OnInit {
 
   public abrirEditarModal(ingreso: Ingreso): void {
     this.ingresoEditando.set(ingreso);
+    this.guardando.set(false);
     this.ingresoForm.setValue({
       descripcion: ingreso.descripcion,
-      monto: ingreso.monto,
+      monto: this.formatMontoInput(String(ingreso.monto)),
       fecha: new Date(ingreso.fecha).toISOString().substring(0, 10),
       categoria: ingreso.categoria ?? '',
       metodo: ingreso.metodo ?? 'Transferencia',
@@ -342,29 +405,30 @@ export class IngresosComponent implements OnInit {
       this.ingresoForm.markAllAsTouched();
       return;
     }
+    if (this.guardando()) return;
 
     const v = this.ingresoForm.value;
     const input = {
       descripcion: v.descripcion,
-      monto: Number(v.monto),
+      monto: Number(String(v.monto).replace(/,/g, '')),
       fecha: v.fecha,
-      categoria: v.categoria || 'Otros',
-      metodo: v.metodo || 'Transferencia',
     };
+    const categoria = v.categoria || 'Otros';
 
     const request$ = this.ingresoEditando()
       ? this.ingresosService.updateIngreso(this.ingresoEditando()!.id, input)
       : this.ingresosService.createIngreso(input);
 
-    this.cargando.set(true);
+    this.guardando.set(true);
     request$.subscribe({
       next: () => {
-        this.cargando.set(false);
         this.cerrarModal();
+        this.guardando.set(false);
+        this.mostrarToast(this.ingresoEditando() ? 'Cambios guardados correctamente' : 'Ingreso registrado correctamente');
         this.cargarDatos();
       },
       error: (err) => {
-        this.cargando.set(false);
+        this.guardando.set(false);
         alert(err?.error?.message ?? 'Ocurrió un error al guardar el ingreso.');
       },
     });

@@ -173,8 +173,8 @@
   </div>
 
   <!-- Modal crear / editar ingreso -->
-  <div class="modal-backdrop" *ngIf="mostrarModal()">
-    <div class="modal-container glass-card">
+  <div class="modal-backdrop" *ngIf="mostrarModal()" (keydown.escape)="cerrarModal()">
+    <div class="modal-container glass-card" (keydown)="onModalKeydown($event)">
       <div class="modal-header">
         <h2>{{ ingresoEditando() ? 'Editar Ingreso' : 'Nuevo Ingreso' }}</h2>
         <button (click)="cerrarModal()" class="btn-close-modal">&times;</button>
@@ -185,7 +185,7 @@
           <label for="descripcion">Descripción</label>
           <input id="descripcion" type="text" formControlName="descripcion" placeholder="Ej. Sueldo mensual" class="form-input" />
           <div *ngIf="ingresoForm.get('descripcion')?.touched && ingresoForm.get('descripcion')?.invalid" class="form-error">
-            La descripción es obligatoria (máx. 100 caracteres).
+            La descripción es obligatoria (mín. 3, máx. 100 caracteres).
           </div>
         </div>
 
@@ -210,9 +210,13 @@
         <div class="form-row">
           <div class="form-field">
             <label for="monto">Monto ({{ currencyService.getSimbolo() }})</label>
-            <input id="monto" type="number" step="0.01" formControlName="monto" placeholder="0.00" class="form-input" />
+            <div class="input-wrap">
+              <span class="input-symbol">{{ currencyService.getSimbolo() }}</span>
+              <input id="monto" type="text" inputmode="decimal" formControlName="monto" placeholder="0.00" class="form-input form-input--symbol" (input)="onMontoInput($event)" />
+            </div>
             <div *ngIf="ingresoForm.get('monto')?.touched && ingresoForm.get('monto')?.invalid" class="form-error">
-              Monto obligatorio y mayor a 0.
+              <ng-container *ngIf="ingresoForm.get('monto')?.errors?.['maxDecimales']">El monto admite hasta 2 decimales.</ng-container>
+              <ng-container *ngIf="!ingresoForm.get('monto')?.errors?.['maxDecimales']">Monto obligatorio y mayor a 0.</ng-container>
             </div>
           </div>
           <div class="form-field">
@@ -234,12 +238,20 @@
 
         <div class="modal-footer">
           <button type="button" (click)="cerrarModal()" class="btn-secondary">Cancelar</button>
-          <button type="submit" class="btn-primary" [disabled]="ingresoForm.invalid">
+          <button type="submit" class="btn-primary" [disabled]="ingresoForm.invalid || guardando()">
+            <span *ngIf="guardando()" class="spinner-sm"></span>
             {{ ingresoEditando() ? 'Guardar cambios' : 'Guardar Ingreso' }}
           </button>
         </div>
       </form>
     </div>
+  </div>
+
+  <!-- Toast de éxito -->
+  <div class="gastos-toast" *ngIf="toast()">
+    <lucide-icon [name]="'check-circle'" [size]="18"></lucide-icon>
+    <span>{{ toast() }}</span>
+    <button type="button" class="gastos-toast-close" (click)="toast.set(null)" title="Cerrar">&times;</button>
   </div>
 
   <!-- Modal confirmar eliminar -->
