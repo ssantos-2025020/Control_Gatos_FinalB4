@@ -67,10 +67,15 @@ class GastosController {
       return;
     }
 
-    const { descripcion, monto, fecha, categoriaId } = req.body;
+    const { descripcion, monto, fecha, categoriaId, metodo } = req.body;
 
     if (!descripcion || monto === undefined || !categoriaId) {
       res.status(400).json({ message: 'Descripción, monto y categoría son campos obligatorios.' });
+      return;
+    }
+
+    if (descripcion.trim() === '' || categoriaId.trim() === '') {
+      res.status(400).json({ message: 'Descripción y categoría son campos obligatorios.' });
       return;
     }
 
@@ -85,6 +90,7 @@ class GastosController {
         monto,
         fecha,
         categoriaId,
+        metodo,
       });
       res.status(201).json(nuevo);
     } catch (error: any) {
@@ -106,7 +112,7 @@ class GastosController {
       return;
     }
 
-    const { descripcion, monto, fecha, categoriaId } = req.body;
+    const { descripcion, monto, fecha, categoriaId, metodo } = req.body;
 
     if (monto !== undefined && (isNaN(Number(monto)) || Number(monto) <= 0)) {
       res.status(400).json({ message: 'El monto debe ser un número positivo.' });
@@ -119,6 +125,7 @@ class GastosController {
         monto,
         fecha,
         categoriaId,
+        metodo,
       });
       res.status(200).json(actualizado);
     } catch (error: any) {

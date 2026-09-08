@@ -785,8 +785,8 @@ export class GastosComponent implements OnInit, OnDestroy {
       monto: Number(String(v.monto).replace(/,/g, '')),
       fecha: v.fecha,
       categoriaId: v.categoriaId,
+      metodo: v.metodo,
     };
-    const metodo = v.metodo || 'Efectivo';
 
     const request$ = this.gastoEditando()
       ? this.gastosService.updateGasto(this.gastoEditando()!.id, input)

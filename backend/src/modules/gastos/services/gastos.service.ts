@@ -26,6 +26,7 @@ export interface GastoInput {
   monto?: number | string;
   fecha?: string;
   categoriaId?: string;
+  metodo?: 'Efectivo' | 'Tarjeta' | 'Transferencia';
 }
 
 interface GetGastosFilters {
@@ -44,6 +45,7 @@ interface GastoRow {
   updatedAt: Date | string;
   usuarioId: string;
   categoriaId: string;
+  metodo: string | null;
   categoria_nombre: string;
   usuario_nombre: string;
   usuario_email: string;
@@ -58,12 +60,13 @@ export interface Gasto {
   updatedAt: string;
   usuarioId: string;
   categoriaId: string;
+  metodo?: 'Efectivo' | 'Tarjeta' | 'Transferencia' | null;
   categoria: { id: string; nombre: string };
   usuario: { id: string; nombre: string; email: string };
 }
 
 const SELECT_BASE = `
-  SELECT g.id, g.descripcion, g.monto, g.fecha, g."createdAt", g."updatedAt",
+  SELECT g.id, g.descripcion, g.monto, g.fecha, g.metodo, g."createdAt", g."updatedAt",
          g."usuarioId", g."categoriaId",
          c.nombre AS categoria_nombre,
          u.nombre AS usuario_nombre, u.email AS usuario_email
@@ -89,6 +92,7 @@ function aGasto(fila: GastoRow): Gasto {
     updatedAt: aIso(fila.updatedAt),
     usuarioId: fila.usuarioId,
     categoriaId: fila.categoriaId,
+    metodo: (fila.metodo ?? null) as Gasto['metodo'],
     categoria: { id: fila.categoriaId, nombre: fila.categoria_nombre },
     usuario: { id: fila.usuarioId, nombre: fila.usuario_nombre, email: fila.usuario_email },
   };
@@ -160,7 +164,7 @@ class GastosService {
 
   public async createGasto(
     userId: string,
-    data: { descripcion: string; monto: number | string; fecha?: string; categoriaId: string },
+    data: { descripcion: string; monto: number | string; fecha?: string; categoriaId: string; metodo?: string },
   ): Promise<Gasto> {
     // Validar categoría
     const categoria = await query<{ id: string }>('SELECT id FROM categorias WHERE id = $1', [
@@ -172,12 +176,15 @@ class GastosService {
     }
 
     const fechaGasto = data.fecha ? new Date(data.fecha) : new Date();
+    const metodo = ['Efectivo', 'Tarjeta', 'Transferencia'].includes(data.metodo ?? '')
+      ? data.metodo
+      : 'Efectivo';
 
     const creado = await query<{ id: string }>(
-      `INSERT INTO gastos (id, descripcion, monto, fecha, "createdAt", "updatedAt", "usuarioId", "categoriaId")
-       VALUES (gen_random_uuid()::text, $1, $2, $3, now(), now(), $4, $5)
+      `INSERT INTO gastos (id, descripcion, monto, fecha, metodo, "createdAt", "updatedAt", "usuarioId", "categoriaId")
+       VALUES (gen_random_uuid()::text, $1, $2, $3, $4, now(), now(), $5, $6)
        RETURNING id`,
-      [data.descripcion.trim(), Number(data.monto), fechaGasto, userId, data.categoriaId],
+      [data.descripcion.trim(), Number(data.monto), fechaGasto, metodo, userId, data.categoriaId],
     );
 
     const filas = await query<GastoRow>(`${SELECT_BASE} WHERE g.id = $1`, [creado[0].id]);
@@ -212,14 +219,22 @@ class GastosService {
     }
 
     if (data.categoriaId !== undefined) {
-      const categoria = await query<{ id: string }>('SELECT id FROM categorias WHERE id = $1', [
-        data.categoriaId,
-      ]);
-      if (!categoria[0]) {
-        throw new GastoCategoryNotFoundError();
+      if (data.categoriaId !== null) {
+        const categoria = await query<{ id: string }>('SELECT id FROM categorias WHERE id = $1', [
+          data.categoriaId,
+        ]);
+        if (!categoria[0]) {
+          throw new GastoCategoryNotFoundError();
+        }
       }
       params.push(data.categoriaId);
       sets.push(`"categoriaId" = $${params.length}`);
+    }
+
+    if (data.metodo !== undefined) {
+      const metodo = ['Efectivo', 'Tarjeta', 'Transferencia'].includes(data.metodo) ? data.metodo : 'Efectivo';
+      params.push(metodo);
+      sets.push(`metodo = $${params.length}`);
     }
 
     sets.push('"updatedAt" = now()');
