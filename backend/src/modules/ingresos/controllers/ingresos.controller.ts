@@ -72,6 +72,11 @@ class IngresosController {
       return;
     }
 
+    if (descripcion.trim() === '') {
+      res.status(400).json({ message: 'Descripción es un campo obligatorio.' });
+      return;
+    }
+
     if (isNaN(Number(monto)) || Number(monto) <= 0) {
       res.status(400).json({ message: 'El monto debe ser un número positivo.' });
       return;

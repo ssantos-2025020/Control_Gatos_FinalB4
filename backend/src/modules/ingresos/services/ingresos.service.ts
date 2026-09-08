@@ -201,12 +201,12 @@ class IngresosService {
     }
 
     if (data.categoria !== undefined) {
-      params.push(data.categoria.trim() || null);
+      params.push(data.categoria?.trim() || null);
       sets.push(`categoria = $${params.length}`);
     }
 
     if (data.metodo !== undefined) {
-      params.push(data.metodo.trim() || null);
+      params.push(data.metodo?.trim() || null);
       sets.push(`metodo = $${params.length}`);
     }
 

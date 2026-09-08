@@ -128,4 +128,11 @@ export class ConfiguracionComponent {
     this.currencyService.setPosicionSimbolo(this.posicion());
     this.mostrarToast('Cambios guardados correctamente');
   }
+
+  ngOnDestroy(): void {
+    if (this.toastTimer) {
+      clearTimeout(this.toastTimer);
+      this.toastTimer = null;
+    }
+  }
 }

@@ -101,7 +101,7 @@ class UsuariosService {
       throw new Error('El nombre debe tener al menos 2 caracteres.');
     }
 
-    if (data.password.length < 6) {
+    if (!data.password || data.password.length < 6) {
       throw new Error('La contraseña debe tener al menos 6 caracteres.');
     }
 
