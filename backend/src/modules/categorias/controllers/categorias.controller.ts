@@ -28,10 +28,19 @@ class CategoriasController {
   public async createCategoria(req: Request, res: Response): Promise<void> {
     const data = req.body as CreateCategoriaDTO;
 
+    if (!data.nombre || data.nombre.trim() === '') {
+      res.status(400).json({ message: 'El nombre de la categoría es obligatorio.' });
+      return;
+    }
+
     try {
       const categoria = await categoriasService.createCategoria(data);
       res.status(201).json(categoria);
-    } catch (error) {
+    } catch (error: any) {
+      if (error.message === 'No se pudo crear la categoría.') {
+        res.status(400).json({ message: error.message });
+        return;
+      }
       console.error('[CategoriasController] Error al crear categoría:', error);
       res.status(500).json({ message: 'Error interno del servidor.' });
     }

@@ -50,6 +50,7 @@ class CategoriasService {
       if (existente[0]) {
         return existente[0];
       }
+      throw new Error('No se pudo crear la categoría.');
     }
 
     return filas[0];

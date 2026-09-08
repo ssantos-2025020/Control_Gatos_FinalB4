@@ -35,6 +35,16 @@ class PresupuestosController {
     const { id } = req.params;
     const { monto } = req.body;
 
+    if (monto === undefined || monto === null) {
+      res.status(400).json({ message: 'El monto es obligatorio.' });
+      return;
+    }
+
+    if (isNaN(Number(monto)) || Number(monto) < 0) {
+      res.status(400).json({ message: 'El monto debe ser un número mayor o igual a cero.' });
+      return;
+    }
+
     try {
       const presupuesto = await presupuestosService.updateMonto(id, Number(monto));
       res.status(200).json(presupuesto);

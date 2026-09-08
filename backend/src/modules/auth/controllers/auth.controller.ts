@@ -7,7 +7,7 @@ class AuthController {
   public async login(req: Request, res: Response): Promise<void> {
     const { email, password } = req.body as LoginDTO;
 
-    if (!email || !password) {
+    if (!email || !password || email.trim() === '' || password.trim() === '') {
       res.status(400).json({ success: false, message: 'Correo y contraseña son obligatorios.' });
       return;
     }
