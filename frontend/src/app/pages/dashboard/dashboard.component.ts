@@ -14,14 +14,13 @@ import { CurrencyService } from '../../services/currency.service';
 import { ConfigService } from '../../services/config.service';
 import { FiltroFechaService } from '../../services/filtro-fecha.service';
 import { AlertaPresupuestoComponent } from '../../components/alerta-presupuesto/alerta-presupuesto.component';
-import { RadialProgressComponent } from '../../components/radial-progress/radial-progress.component';
 import { SelectorMesComponent } from '../../components/selector-mes/selector-mes.component';
 import { PRESUPUESTOS_BASE, PRESUPUESTO_TOTAL_BASE } from '../../services/mock-data';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink, RouterLinkActive, BaseChartDirective, LucideIconComponent, SidebarComponent, AlertaPresupuestoComponent, RadialProgressComponent, SelectorMesComponent],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink, RouterLinkActive, BaseChartDirective, LucideIconComponent, SidebarComponent, AlertaPresupuestoComponent, SelectorMesComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css',
 })
