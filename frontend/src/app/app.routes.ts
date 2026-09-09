@@ -17,7 +17,6 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./pages/ingresos/ingresos.component').then((m) => m.IngresosComponent),
   },
-  // Secciones aún no migradas: se mostrarán Próximamente.
   {
     path: 'gastos',
     canActivate: [authGuard],
