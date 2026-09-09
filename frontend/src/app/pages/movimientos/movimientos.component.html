@@ -1,0 +1,75 @@
+<div class="app-shell">
+  <app-sidebar></app-sidebar>
+
+  <!-- Main Area -->
+  <div class="main-area">
+    <header class="topbar">
+      <div class="topbar-left">
+        <h2 class="page-title">Movimientos</h2>
+        <p class="page-subtitle">Historial de gastos e ingresos</p>
+      </div>
+      <div class="topbar-right">
+        <app-selector-mes (mesSeleccionado)="onMesCambiado($event)"></app-selector-mes>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <div *ngIf="cargando()" class="loading-state">
+        <img src="assets/Logo sinfondo.png" alt="Legatus" class="loading-logo" />
+        <div class="spinner"></div>
+        <p>Cargando movimientos...</p>
+      </div>
+
+      <div *ngIf="errorMsg()" class="error-state">{{ errorMsg() }}</div>
+
+      <section class="stats-grid" *ngIf="!cargando()">
+        <div class="glass-card" style="grid-column: 1 / -1;">
+          <div class="filtros-bar">
+            <div class="filtro-tabs">
+              <button class="filtro-tab" [class.active]="filtroTipo() === 'todos'" (click)="onFiltroTipoChange('todos')">Todos</button>
+              <button class="filtro-tab" [class.active]="filtroTipo() === 'gasto'" (click)="onFiltroTipoChange('gasto')">Gastos</button>
+              <button class="filtro-tab" [class.active]="filtroTipo() === 'ingreso'" (click)="onFiltroTipoChange('ingreso')">Ingresos</button>
+            </div>
+            <div class="mov-search">
+              <input class="form-input buscador" placeholder="Buscar..." (input)="onBusquedaChange($any($event.target).value)" />
+              <span class="search-icon"><lucide-icon [name]="'search'" [size]="15"></lucide-icon></span>
+            </div>
+          </div>
+
+          <div class="resumen-mov">
+            <span class="resumen-ing"><lucide-icon [name]="'trending-up'" [size]="14"></lucide-icon> Ingresos: {{ totalIngresos() }}</span>
+            <span class="resumen-gas"><lucide-icon [name]="'trending-down'" [size]="14"></lucide-icon> Gastos: {{ totalGastos() }}</span>
+          </div>
+
+          <div *ngIf="!hayMovimientos()" class="no-stats">Sin movimientos para este mes.</div>
+
+          <div class="movimientos-body" *ngIf="hayMovimientos()">
+            <div *ngFor="let m of movimientosPaginados()" class="movimiento-item">
+              <div class="mov-left">
+                <div class="mov-icon-wrap" [class.mov-gasto]="m.tipo === 'gasto'" [class.mov-ingreso]="m.tipo === 'ingreso'">
+                  <lucide-icon [name]="m.icono" [size]="14"></lucide-icon>
+                </div>
+                <div class="mov-info">
+                  <span class="mov-desc">{{ m.descripcion }}</span>
+                  <span class="mov-cat">{{ m.categoria }}</span>
+                </div>
+              </div>
+              <div class="mov-right">
+                <span class="mov-monto" [class.mov-gasto]="m.tipo === 'gasto'" [class.mov-ingreso]="m.tipo === 'ingreso'">
+                  {{ m.tipo === 'ingreso' ? '+' : '-' }} {{ currencyService.formatear(m.monto) }}
+                </span>
+                <span class="mov-fecha">{{ formatearFecha(m.fecha) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="paginacion" *ngIf="hayMovimientos() && totalPaginas() > 1">
+            <button class="btn-secondary" (click)="paginaAnterior()" [disabled]="pagina() === 1"><lucide-icon [name]="'chevron-left'" [size]="14"></lucide-icon> Anterior</button>
+            <span class="pagina-label">Página {{ pagina() }} de {{ totalPaginas() }}</span>
+            <button class="btn-secondary" (click)="paginaSiguiente()" [disabled]="pagina() === totalPaginas()">Siguiente <lucide-icon [name]="'chevron-right'" [size]="14"></lucide-icon></button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
