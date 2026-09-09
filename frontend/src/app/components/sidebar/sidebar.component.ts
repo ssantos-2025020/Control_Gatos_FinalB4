@@ -24,6 +24,9 @@ import { AuthService } from '../../services/auth.service';
         <a class="nav-link" routerLink="/gastos" routerLinkActive="active">
           <lucide-icon [name]="'trending-down'" [size]="18" class="nav-icon"></lucide-icon> Gastos
         </a>
+        <a class="nav-link" routerLink="/movimientos" routerLinkActive="active">
+          <lucide-icon [name]="'history'" [size]="18" class="nav-icon"></lucide-icon> Movimientos
+        </a>
         <a class="nav-link" routerLink="/presupuestos" routerLinkActive="active">
           <lucide-icon [name]="'pie-chart'" [size]="18" class="nav-icon"></lucide-icon> Presupuestos
         </a>

@@ -26,8 +26,7 @@ export const routes: Routes = [
   {
     path: 'movimientos',
     canActivate: [authGuard],
-    loadComponent: () => import('./pages/proximamente/proximamente.component').then((m) => m.ProximamenteComponent),
-    data: { titulo: 'Movimientos', descripcion: 'Consulta el historial completo de ingresos y gastos.', icono: 'history' },
+    loadComponent: () => import('./pages/movimientos/movimientos.component').then((m) => m.MovimientosComponent),
   },
   {
     path: 'presupuestos',
