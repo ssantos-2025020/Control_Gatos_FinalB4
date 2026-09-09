@@ -21,7 +21,7 @@ Cuenta con un **backend** de API REST (Express + TypeScript + PostgreSQL) y un *
 
 ```
 backend/   Express + TypeScript + PostgreSQL (puerto 2500)
-frontend/  Angular 18 (puerto 8080)
+frontend/  Angular 18 (puerto 4200)
 ```
 
 ## Instalación
@@ -45,7 +45,7 @@ pnpm install
 cd backend
 pnpm dev
 
-# Frontend (puerto 8080)
+# Frontend (puerto 4200)
 cd frontend
 pnpm start
 ```
@@ -74,16 +74,17 @@ Funcionales:
 - **Dashboard** — evolución de gastos, gastos por categoría, presupuestos y movimientos recientes
 - **Ingresos** — registro, edición, eliminación y paginación
 - **Gastos** — registro, edición, eliminación y método de pago (Efectivo/Tarjeta/Transferencia)
+- **Movimientos** — historial consolidado de ingresos y gastos con filtros y paginación
 - **Presupuestos** — asignación y control por categoría con estado (Bien/Precaución/Alerta)
 - **Categorías** — gestión con color personalizado y validación de colores únicos
+- **Reportes** — análisis con gráficos, comparativas, resumen del período y exportación a PDF/CSV
+- **Usuarios** — administración de usuarios y roles (crear, editar y eliminar)
 - **Configuración** — perfil y moneda
 
 Pendientes:
 
-- Reportes
-- Usuarios (administración)
 - API de Google
-- Roles
+- Roles avanzados (restricción por tipo de usuario)
 
 ## Flujo de trabajo en Git
 
