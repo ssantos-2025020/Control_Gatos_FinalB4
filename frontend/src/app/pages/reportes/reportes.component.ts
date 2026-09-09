@@ -271,14 +271,31 @@ export class ReportesComponent implements OnInit {
   donutCenterTotal = computed(() => this.currencyService.formatear(this.totalGastosVisibles()));
 
   /* ─── Colores de categorías (esquema compartido del Dashboard) ─── */
+  private static readonly COLOR_CATEGORIA: { [key: string]: string } = {
+    'Alimentacion': '#1268ff',
+    'Transporte': '#00b9e8',
+    'Vivienda': '#7228e8',
+    'Servicios Publicos': '#ff6b9d',
+    'Comunicaciones': '#00e7a8',
+    'Salud': '#ffa500',
+    'Educacion': '#6ea8ff',
+    'Entretenimiento': '#c084fc',
+    'Ropa y Calzado': '#fbbf24',
+    'Compras': '#00d0a8',
+    'Viajes': '#ff6b9d',
+    'Mascotas': '#a855f7',
+    'Seguros': '#1268ff',
+    'Impuestos': '#00b9e8',
+    'Ahorro e Inversion': '#00e7a8',
+    'Otros': '#fbbf24',
+    'Comida': '#1268ff',
+    'Servicios': '#7228e8',
+  };
+
   colorCategoria(nombre: string): string {
-    const n = (nombre || '').toLowerCase();
-    if (n.includes('comida')) return '#1268ff';
-    if (n.includes('transporte')) return '#00b9e8';
-    if (n.includes('servicio')) return '#7228e8';
-    if (n.includes('entreten')) return '#ff6b9d';
-    if (n.includes('salud')) return '#00e7a8';
-    return '#fbbf24';
+    const n = (nombre || '').trim().toLowerCase();
+    const exact = Object.keys(ReportesComponent.COLOR_CATEGORIA).find((k) => k.toLowerCase() === n);
+    return exact ? ReportesComponent.COLOR_CATEGORIA[exact] : '#fbbf24';
   }
 
   getIconoCategoria(nombre?: string): string {
@@ -360,8 +377,8 @@ export class ReportesComponent implements OnInit {
         displayColors: true,
         boxPadding: 6,
         callbacks: {
-          title: (item: any) => {
-            const cat = this.gastosPorCategoria()[item.dataIndex];
+          title: (items: any[]) => {
+            const cat = this.gastosPorCategoria()[items?.[0]?.dataIndex];
             return cat?.name || 'Categoría';
           },
           label: (item: any) => {
@@ -502,6 +519,7 @@ export class ReportesComponent implements OnInit {
           label: 'Balance',
           data: b.balance.map((v) => this.currencyService.convertir(v)),
           borderColor: '#1268ff',
+          yAxisID: 'y1',
           backgroundColor: esTotal ? (ctx: any) => {
             const value = ctx.raw;
             if (value >= 0) {
@@ -613,6 +631,19 @@ export class ReportesComponent implements OnInit {
           grid: {
             color: 'rgba(122,160,255,0.08)',
             drawBorder: false
+          },
+          ticks: {
+            color: '#8290b5',
+            font: { size: 10, family: 'Inter' },
+            callback: (val: any) => this.currencyService.formatearValor(Number(val), 0)
+          },
+          border: { display: false },
+          beginAtZero: true,
+        },
+        y1: {
+          position: 'right',
+          grid: {
+            drawOnChartArea: false,
           },
           ticks: {
             color: '#8290b5',
