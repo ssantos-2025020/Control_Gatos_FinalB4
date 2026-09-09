@@ -46,8 +46,7 @@ export const routes: Routes = [
   {
     path: 'usuarios',
     canActivate: [authGuard],
-    loadComponent: () => import('./pages/proximamente/proximamente.component').then((m) => m.ProximamenteComponent),
-    data: { titulo: 'Usuarios', descripcion: 'Administra usuarios, roles y accesos al sistema.', icono: 'users' },
+    loadComponent: () => import('./pages/usuarios/usuarios.component').then((m) => m.UsuariosComponent),
   },
   {
     path: 'configuracion',
