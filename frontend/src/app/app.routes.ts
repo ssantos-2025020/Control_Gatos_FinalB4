@@ -41,8 +41,7 @@ export const routes: Routes = [
   {
     path: 'reportes',
     canActivate: [authGuard],
-    loadComponent: () => import('./pages/proximamente/proximamente.component').then((m) => m.ProximamenteComponent),
-    data: { titulo: 'Reportes', descripcion: 'Analiza tus finanzas con gráficos y comparativas.', icono: 'bar-chart-3' },
+    loadComponent: () => import('./pages/reportes/reportes.component').then((m) => m.ReportesComponent),
   },
   {
     path: 'usuarios',

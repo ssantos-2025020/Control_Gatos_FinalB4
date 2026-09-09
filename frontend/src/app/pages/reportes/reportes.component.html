@@ -1,0 +1,265 @@
+<div class="app-shell">
+  <app-sidebar></app-sidebar>
+
+  <div class="main-area">
+    <header class="topbar">
+      <div class="topbar-left">
+        <h2 class="page-title">Reportes</h2>
+        <p class="page-subtitle">Analiza el rendimiento financiero de tus movimientos.</p>
+      </div>
+      <div class="topbar-right">
+        <label class="period-wrap" title="Período del reporte">
+          <lucide-icon name="calendar-days" [size]="15"></lucide-icon>
+          <select class="period-select" [value]="periodo()" (change)="onPeriodoCambio($event)">
+            <option *ngFor="let op of PERIODO_OPCIONES" [value]="op.id">{{ op.label }}</option>
+          </select>
+        </label>
+
+        <button class="btn-secondary" (click)="toggleFiltros()">
+          <lucide-icon name="filter" [size]="15"></lucide-icon> Filtros
+          <span class="filter-count-badge" *ngIf="filtrosActivos()">{{ filtrosActivosCount() }}</span>
+        </button>
+
+        <div class="export-wrap">
+          <button class="btn-primary" (click)="toggleExportMenu()">
+            <lucide-icon name="download" [size]="15"></lucide-icon> Exportar reporte
+            <lucide-icon name="chevron-down" [size]="13"></lucide-icon>
+          </button>
+          <div class="export-menu" *ngIf="exportMenu()">
+            <a class="export-item" (click)="exportar('pdf')">
+              <lucide-icon name="file-text" [size]="15"></lucide-icon> PDF
+            </a>
+            <a class="export-item" (click)="exportar('csv')">
+              <lucide-icon name="bar-chart-3" [size]="15"></lucide-icon> Excel (CSV)
+            </a>
+          </div>
+          <div class="mobile-backdrop" *ngIf="exportMenu()" (click)="exportMenu.set(false)"></div>
+        </div>
+      </div>
+    </header>
+
+    <div class="filters-panel" *ngIf="mostrarFiltros()">
+      <div class="fpanel-field">
+        <span class="fpanel-label">Categoría</span>
+        <select class="input-filter select-filter" [value]="filtroCategoria()" (change)="onFiltroCategoria($event)">
+          <option value="">Todas las categorías</option>
+          <option *ngFor="let c of categorias()" [value]="c.nombre">{{ c.nombre }}</option>
+        </select>
+      </div>
+      <div class="fpanel-field">
+        <span class="fpanel-label">Usuario</span>
+        <select class="input-filter select-filter" [value]="filtroUsuario()" (change)="onFiltroUsuario($event)">
+          <option value="">Todos los usuarios</option>
+          <option *ngFor="let u of usuarios()" [value]="u">{{ u }}</option>
+        </select>
+      </div>
+      <div class="fpanel-field">
+        <span class="fpanel-label">Método de pago</span>
+        <select class="input-filter select-filter" [value]="filtroMetodo()" (change)="onFiltroMetodo($event)">
+          <option value="">Todos los métodos</option>
+          <option *ngFor="let meta of METODOS" [value]="meta">{{ meta }}</option>
+        </select>
+      </div>
+      <button class="btn-link-clean" (click)="limpiarFiltros()" [style.visibility]="filtrosActivos() ? 'visible' : 'hidden'">
+        <lucide-icon name="x" [size]="13"></lucide-icon> Limpiar filtros
+      </button>
+      <span class="fpanel-hint">Los filtros refinan los paneles analíticos; las tarjetas de resumen siempre reflejan el total del período.</span>
+    </div>
+
+    <main class="page-content">
+      <div *ngIf="cargando()" class="loading-state">
+        <img src="assets/Logo sinfondo.png" alt="Legatus" class="loading-logo" />
+        <div class="spinner"></div>
+        <p>Cargando reportes...</p>
+      </div>
+
+      <div *ngIf="errorMsg()" class="error-state">{{ errorMsg() }}</div>
+
+      <ng-container *ngIf="!cargando()">
+        <section class="stats-grid">
+          <div class="glass-card stat-card card-green">
+            <div class="stat-icon-wrap teal"><lucide-icon name="wallet" [size]="20"></lucide-icon></div>
+            <div class="stat-content">
+              <span class="stat-label">Ingresos totales</span>
+              <span class="stat-value green-text">{{ totalIngresosPeriodo() }}</span>
+              <span class="stat-change" [class.up]="(cambioIngresos() ?? -1) >= 0" [class.down]="(cambioIngresos() ?? -1) < 0">
+                <ng-container *ngIf="cambioIngresos() !== null">
+                  <lucide-icon [name]="(cambioIngresos() ?? -1) >= 0 ? 'arrow-up-right' : 'arrow-down-right'" [size]="13"></lucide-icon>
+                  {{ cambioIngresos() === 0 ? '0' : MathAbs(cambioIngresos() ?? 0) }}% vs mes anterior
+                </ng-container>
+                <ng-container *ngIf="cambioIngresos() === null && totalIngresosPeriodoUSD() > 0">Sin datos del período anterior</ng-container>
+              </span>
+            </div>
+          </div>
+
+          <div class="glass-card stat-card card-red">
+            <div class="stat-icon-wrap purple"><lucide-icon name="arrow-down-right" [size]="20"></lucide-icon></div>
+            <div class="stat-content">
+              <span class="stat-label">Gastos totales</span>
+              <span class="stat-value red-text">{{ totalGastosPeriodo() }}</span>
+              <span class="stat-change" [class.up]="(cambioGastos() ?? 1) <= 0" [class.down]="(cambioGastos() ?? 1) > 0">
+                <ng-container *ngIf="cambioGastos() !== null">
+                  <lucide-icon [name]="(cambioGastos() ?? 1) <= 0 ? 'arrow-down-right' : 'arrow-up-right'" [size]="13"></lucide-icon>
+                  {{ cambioGastos() === 0 ? '0' : MathAbs(cambioGastos() ?? 0) }}% vs mes anterior
+                </ng-container>
+                <ng-container *ngIf="cambioGastos() === null && totalGastosPeriodoUSD() > 0">Sin datos del período anterior</ng-container>
+              </span>
+            </div>
+          </div>
+
+          <div class="glass-card stat-card card-blue">
+            <div class="stat-icon-wrap blue"><lucide-icon name="scale" [size]="20"></lucide-icon></div>
+            <div class="stat-content">
+              <span class="stat-label">Balance</span>
+              <span class="stat-value blue-text">{{ balancePeriodo() }}</span>
+              <span class="stat-change blue" *ngIf="cambioBalance() !== null">
+                <lucide-icon [name]="(cambioBalance() ?? -1) >= 0 ? 'arrow-up-right' : 'arrow-down-right'" [size]="13"></lucide-icon>
+                {{ cambioBalance() === 0 ? '0' : MathAbs(cambioBalance() ?? 0) }}% vs mes anterior
+              </span>
+              <span class="stat-change neutral" *ngIf="cambioBalance() === null">Sin datos del período anterior</span>
+            </div>
+          </div>
+
+          <div class="glass-card stat-card card-orange">
+            <div class="stat-icon-wrap orange"><lucide-icon name="piggy-bank" [size]="20"></lucide-icon></div>
+            <div class="stat-content">
+              <span class="stat-label">Ahorro</span>
+              <span class="stat-value orange-text">{{ tasaAhorroStr() }}%</span>
+              <span class="stat-change neutral">Del total de ingresos</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="charts-row">
+          <div class="glass-card chart-panel">
+            <div class="panel-header">
+              <div class="panel-title">Ingresos vs Gastos</div>
+              <select class="panel-select" [value]="granularidad()" (change)="onGranularidad($event)">
+                <option *ngFor="let g of GRANULARIDAD_OPCIONES" [value]="g.id">{{ g.label }}</option>
+              </select>
+            </div>
+            <div class="chart-container" style="height: 260px;">
+              <canvas baseChart [type]="'line'" [data]="mixedChartData()" [options]="mixedChartOptions()" *ngIf="hasMixedChartData()"></canvas>
+              <div class="no-stats" *ngIf="!hasMixedChartData()">Sin movimientos para el período y filtros seleccionados.</div>
+            </div>
+          </div>
+
+          <div class="glass-card chart-panel">
+            <div class="panel-header">
+              <div class="panel-title">Gastos por categoría</div>
+              <select class="panel-select" [value]="periodo()" (change)="onPeriodoCambio($event)">
+                <option *ngFor="let op of PERIODO_OPCIONES" [value]="op.id">{{ op.label }}</option>
+              </select>
+            </div>
+            <div class="donut-layout" *ngIf="gastosPorCategoria().length > 0">
+              <div class="donut-chart-wrap">
+                <canvas baseChart
+                  *ngIf="hasDonutChartData()"
+                  [type]="'doughnut'"
+                  [data]="donutChartData()"
+                  [options]="donutChartOptions()"></canvas>
+                <div class="donut-center-label" *ngIf="hasDonutChartData()">
+                  <span class="donut-center-total">{{ donutCenterTotal() }}</span>
+                  <span class="donut-center-sub">gastados</span>
+                </div>
+              </div>
+              <div class="donut-legend">
+                <div *ngFor="let c of gastosPorCategoria()" class="legend-item">
+                  <span class="legend-dot" [style.background]="c.color"></span>
+                  <span class="legend-name">{{ c.name }}</span>
+                  <span class="legend-amount">{{ c.amountFormatted }}</span>
+                  <span class="legend-pct">{{ c.percentage }}%</span>
+                </div>
+              </div>
+            </div>
+            <div class="no-stats" *ngIf="gastosPorCategoria().length === 0">Sin gastos para clasificar en este período.</div>
+          </div>
+        </section>
+
+        <section class="bottom-row">
+          <div class="glass-card bottom-panel">
+            <div class="panel-header">
+              <div class="panel-title">Gastos por mes (comparación)</div>
+              <select class="panel-select" [value]="ventana()" (change)="onVentana($event)">
+                <option *ngFor="let v of VENTANA_OPCIONES" [value]="v.id">{{ v.label }}</option>
+              </select>
+            </div>
+            <div class="chart-container" style="height: 235px;">
+              <canvas baseChart [type]="'bar'" [data]="comparacionChartData()" [options]="comparacionChartOptions()" *ngIf="hasComparacionChartData()"></canvas>
+              <div class="no-stats" *ngIf="!hasComparacionChartData()">Sin gastos históricos para comparar.</div>
+            </div>
+            <p class="compare-hint">Cada categoría compara el mes anterior (gris) con el mes actual (azul) según el histórico disponible.</p>
+          </div>
+
+          <div class="glass-card bottom-panel">
+            <div class="panel-header">
+              <div class="panel-title">Top 5 mayores gastos</div>
+            </div>
+            <div class="top-list" *ngIf="topMayoresGastos().length > 0">
+              <div *ngFor="let g of topMayoresGastos()" class="top-list-item">
+                <div class="mov-icon-wrap mov-gasto" [style.background]="withAlpha(g.categoriaColor, 0.16)" [style.color]="g.categoriaColor">
+                  <lucide-icon [name]="g.icono" [size]="14"></lucide-icon>
+                </div>
+                <div class="mov-info">
+                  <span class="mov-desc">{{ g.descripcion }}</span>
+                  <span class="mov-cat">
+                    <span class="estado-badge muted">{{ g.categoria }}</span>
+                    <span class="gasto-fecha">{{ g.fecha }}</span>
+                  </span>
+                </div>
+                <span class="top-amount red-text">{{ g.monto }}</span>
+              </div>
+            </div>
+            <div class="no-stats" *ngIf="topMayoresGastos().length === 0">Sin gastos para mostrar.</div>
+            <button class="btn-secondary btn-ver-todos" (click)="verTodosLosGastos()">
+              Ver todos los gastos <lucide-icon name="arrow-right" [size]="14"></lucide-icon>
+            </button>
+          </div>
+
+          <div class="glass-card bottom-panel">
+            <div class="panel-header">
+              <div class="panel-title">Resumen del periodo</div>
+            </div>
+            <div class="resumen-periodo">
+              <div class="reso-row">
+                <span class="reso-label">Total de ingresos</span>
+                <span class="reso-val green-text">{{ totalIngresosPeriodo() }}</span>
+              </div>
+              <div class="reso-row">
+                <span class="reso-label">Total de gastos</span>
+                <span class="reso-val red-text">{{ totalGastosPeriodo() }}</span>
+              </div>
+              <div class="reso-row">
+                <span class="reso-label">Balance neto</span>
+                <span class="reso-val blue-text">{{ balancePeriodo() }}</span>
+              </div>
+              <div class="reso-row">
+                <span class="reso-label">Gasto promedio diario</span>
+                <span class="reso-val">{{ gastoPromedioDiario() }}</span>
+              </div>
+              <div class="reso-row">
+                <span class="reso-label">Día con más gastos</span>
+                <span class="reso-val reso-date">
+                  {{ diaConMasGastos().fecha }}
+                  <span class="reso-monto">{{ diaConMasGastos().montoF }}</span>
+                </span>
+              </div>
+              <div class="reso-row">
+                <span class="reso-label">Categoría más gastada</span>
+                <span class="reso-badge" [style.background]="categoriaTop().color">
+                  {{ categoriaTop().name }} · {{ categoriaTop().montoF }}
+                </span>
+              </div>
+            </div>
+            <div class="motiv-card" [class.ok]="mensajeProgreso().tipo === 'ok'" [class.warn]="mensajeProgreso().tipo === 'warn'" [class.bad]="mensajeProgreso().tipo === 'bad'">
+              <lucide-icon [name]="mensajeProgreso().icono" [size]="17"></lucide-icon>
+              <span>{{ mensajeProgreso().texto }}</span>
+            </div>
+          </div>
+        </section>
+
+        <app-nota-informativa></app-nota-informativa>
+      </ng-container>
+    </main>
+  </div>
+</div>
