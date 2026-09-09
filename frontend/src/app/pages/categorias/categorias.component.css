@@ -1,5 +1,31 @@
 /* ========== Página Categorías ====== */
 
+/* ─── Búsqueda: lupa alineada dentro del input (con el patrón de Gastos) ─── */
+.search-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  font-size: 13px;
+  color: var(--text-muted);
+  pointer-events: none;
+  left: 12px;
+  z-index: 1;
+}
+
+.search-field .input-filter {
+  padding-left: 12px;
+  padding-right: 34px;
+}
+
+.search-field.search-right .search-icon {
+  left: auto;
+  right: 12px;
+}
+
 /* Botón Limpiar (mismo diseño que Gastos/Ingresos/Presupuestos: texto celeste) */
 .btn-link-clean {
   background: transparent;

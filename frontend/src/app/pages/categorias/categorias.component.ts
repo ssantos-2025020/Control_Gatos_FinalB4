@@ -201,15 +201,11 @@ export class CategoriasComponent implements OnInit, OnDestroy {
 
   filaFin = computed(() => Math.min(this.pagina() * this.porPagina, this.filasFiltradas().length));
 
-  colorDe = (nombre: string): string => {
-    const c = this.categorias().find((cat) => cat.nombre === nombre);
-    return c ? this.colorEfectivo(c) : COLORES[0];
-  };
+  colorDe = (nombre: string): string => this.categoriasService.colorDeCategoria(nombre);
 
-  /** Color efectivo de una categoría (preferencia local > color BD > paleta). */
+  /** Color efectivo de una categoría (fuente única centralizada en CategoriasService). */
   private colorEfectivo(c: Categoria): string {
-    const idx = this.categorias().indexOf(c);
-    return this.prefs()[c.id]?.color ?? c.color ?? COLORES[idx % COLORES.length];
+    return this.categoriasService.colorDeCategoria(c.nombre);
   };
 
   opacidadDe = (nombre: string): number => (this.categoriasEnFiltro().has(nombre) ? 1 : 0.35);
@@ -350,7 +346,7 @@ export class CategoriasComponent implements OnInit, OnDestroy {
     this.formErrorMsg.set(null);
     const pref = this.prefs()[categoria.id];
     this.categoriaForm.reset({ nombre: categoria.nombre });
-    this.colorSeleccionado.set(pref?.color ?? categoria.color ?? COLORES[this.categorias().indexOf(categoria) % COLORES.length]);
+    this.colorSeleccionado.set(pref?.color ?? categoria.color ?? this.categoriasService.colorDeCategoria(categoria.nombre));
     this.iconoSeleccionado.set(pref?.icono ?? categoria.icono ?? 'tag');
     this.iconoElegido.set(!!(pref?.icono ?? categoria.icono));
     this.iconoMenuAbierto.set(false);

@@ -91,32 +91,13 @@ export class GastosComponent implements OnInit, OnDestroy {
   mostrarConfirmacion = signal(false);
   gastoAEliminar = signal<Gasto | null>(null);
 
-  private coloresCategoria: { [key: string]: string } = {
-    'Alimentacion': '#1268ff',
-    'Transporte': '#00b9e8',
-    'Vivienda': '#7228e8',
-    'Servicios Publicos': '#ff6b9d',
-    'Comunicaciones': '#00e7a8',
-    'Salud': '#ffa500',
-    'Educacion': '#6ea8ff',
-    'Entretenimiento': '#c084fc',
-    'Ropa y Calzado': '#fbbf24',
-    'Compras': '#00d0a8',
-    'Viajes': '#ff6b9d',
-    'Mascotas': '#a855f7',
-    'Seguros': '#1268ff',
-    'Impuestos': '#00b9e8',
-    'Ahorro e Inversion': '#00e7a8',
-    'Otros': '#fbbf24',
-    'Sin categoría': '#94a3b8',
-  };
-
   private coloresMetodo: { [key: string]: string } = {
     'Efectivo': '#00e7a8', 'Tarjeta': '#a855f7', 'Transferencia': '#1268ff',
   };
 
   public colorCategoria(nombre?: string): string {
-    return this.coloresCategoria[nombre ?? ''] ?? '#94a3b8';
+    if (!nombre || !nombre.trim()) return '#94a3b8';
+    return this.categoriasService.colorDeCategoria(nombre);
   }
 
   public colorMetodo(metodo?: string): string {
@@ -215,7 +196,7 @@ export class GastosComponent implements OnInit, OnDestroy {
         nombre,
         monto,
         porcentaje: total > 0 ? Math.round((monto / total) * 100) : 0,
-        color: this.coloresCategoria[nombre] ?? '#94a3b8',
+        color: this.colorCategoria(nombre),
       }))
       .sort((a, b) => b.monto - a.monto);
   });

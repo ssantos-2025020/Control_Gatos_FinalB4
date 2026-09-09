@@ -1,6 +1,24 @@
 /* CSS específico de Usuarios. El resto del sistema visual vive en theme.css,
    dashboard.component.css y shared-styles.css (globales). */
 
+/* ─── Búsqueda (mismo patrón que Ingresos/Gastos/Presupuestos) ─── */
+.search-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.search-icon {
+  position: absolute;
+  font-size: 13px;
+  color: var(--text-muted);
+  pointer-events: none;
+  left: 12px;
+  z-index: 1;
+}
+.search-field .input-filter {
+  padding-left: 34px;
+}
+
 /* ─── Toast de éxito ─── */
 .gastos-toast {
   position: fixed;

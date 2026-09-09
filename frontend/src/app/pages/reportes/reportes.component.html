@@ -188,7 +188,7 @@
               <canvas baseChart [type]="'bar'" [data]="comparacionChartData()" [options]="comparacionChartOptions()" *ngIf="hasComparacionChartData()"></canvas>
               <div class="no-stats" *ngIf="!hasComparacionChartData()">Sin gastos históricos para comparar.</div>
             </div>
-            <p class="compare-hint">Cada categoría compara el mes anterior (gris) con el mes actual (azul) según el histórico disponible.</p>
+            <p class="compare-hint">Cada categoría compara el período anterior (gris) con el actual (color de la categoría) según el histórico disponible.</p>
           </div>
 
           <div class="glass-card bottom-panel">
