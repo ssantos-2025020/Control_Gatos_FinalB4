@@ -126,36 +126,14 @@ export class DashboardComponent implements OnInit {
 
   private agruparGastosPorCategoria(list: Gasto[]) {
     const map: { [key: string]: { name: string; amountUSD: number; color: string } } = {};
-    const colores: { [key: string]: string } = {
-      'Alimentacion': '#1268ff',
-      'Transporte': '#00b9e8',
-      'Vivienda': '#7228e8',
-      'Servicios Publicos': '#ff6b9d',
-      'Comunicaciones': '#00e7a8',
-      'Salud': '#ffa500',
-      'Educacion': '#6ea8ff',
-      'Entretenimiento': '#c084fc',
-      'Ropa y Calzado': '#fbbf24',
-      'Compras': '#00d0a8',
-      'Viajes': '#ff6b9d',
-      'Mascotas': '#a855f7',
-      'Seguros': '#1268ff',
-      'Impuestos': '#00b9e8',
-      'Ahorro e Inversion': '#00e7a8',
-      'Otros': '#fbbf24',
-      'Comida': '#1268ff',
-      'Servicios': '#7228e8',
-    };
-    const paleta = ['#1268ff', '#00b9e8', '#7228e8', '#ff6b9d', '#00e7a8', '#ffa500', '#6ea8ff', '#c084fc', '#00d0a8', '#fbbf24', '#a855f7'];
 
     list.forEach((g) => {
       const rawName = g.categoria?.nombre || 'Sin Categoría';
       // Las categorías sin presupuesto base se pliegan dentro de "Otros"
       // para mantener la correspondencia con la vista de presupuestos.
       const catName = PRESUPUESTOS_BASE[rawName] !== undefined ? rawName : 'Otros';
-      const catColor = g.categoria?.color || colores[catName] || paleta[Object.keys(map).length % paleta.length];
       if (!map[catName]) {
-        map[catName] = { name: catName, amountUSD: 0, color: colores[catName] ?? catColor };
+        map[catName] = { name: catName, amountUSD: 0, color: this.categoriasService.colorDeCategoria(catName) };
       }
       map[catName].amountUSD += Number(g.monto);
     });
@@ -569,9 +547,8 @@ export class DashboardComponent implements OnInit {
   presupuestos = computed(() => {
     const cats = this.gastosPorCategoria();
     const presupuestosBase = PRESUPUESTOS_BASE;
-    const colores = ['#1268ff', '#00e7a8', '#7228e8', '#ffa500', '#ff4259', '#00b9e8', '#fbbf24', '#ff6b9d'];
 
-    return cats.map((c, i) => {
+    return cats.map((c) => {
       const limite = presupuestosBase[c.name] || Math.max(c.amountUSD * 1.5, 500);
       const porcentaje = Math.round((c.amountUSD / limite) * 1000) / 10;
       return {
@@ -582,7 +559,7 @@ export class DashboardComponent implements OnInit {
         limite: this.currencyService.formatear(limite),
         limiteNum: limite,
         porcentaje,
-        color: c?.color || colores[i % colores.length],
+        color: c.color,
         alerta: porcentaje >= 80,
       };
     });

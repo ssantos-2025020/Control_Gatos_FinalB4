@@ -69,51 +69,8 @@ export class PresupuestosComponent implements OnInit, OnDestroy {
   categorias = signal<Categoria[]>([]);
   limites = signal<{ [key: string]: number }>(this.leerLimites());
 
-  colores: { [key: string]: string } = {
-    'Alimentacion': '#1268ff',
-    'Transporte': '#00b9e8',
-    'Vivienda': '#7228e8',
-    'Servicios Publicos': '#ff6b9d',
-    'Comunicaciones': '#00e7a8',
-    'Salud': '#ffa500',
-    'Educacion': '#6ea8ff',
-    'Entretenimiento': '#c084fc',
-    'Ropa y Calzado': '#fbbf24',
-    'Compras': '#00d0a8',
-    'Viajes': '#ff6b9d',
-    'Mascotas': '#a855f7',
-    'Seguros': '#1268ff',
-    'Impuestos': '#00b9e8',
-    'Ahorro e Inversion': '#00e7a8',
-    'Otros': '#fbbf24',
-    'Comida': '#1268ff',
-    'Servicios': '#7228e8',
-  };
-  colorPorNombre = (nombre: string): string => {
-    const map: { [key: string]: string } = {
-      'Alimentacion': '#1268ff',
-      'Transporte': '#00b9e8',
-      'Vivienda': '#7228e8',
-      'Servicios Publicos': '#ff6b9d',
-      'Comunicaciones': '#00e7a8',
-      'Salud': '#ffa500',
-      'Educacion': '#6ea8ff',
-      'Entretenimiento': '#c084fc',
-      'Ropa y Calzado': '#fbbf24',
-      'Compras': '#00d0a8',
-      'Viajes': '#ff6b9d',
-      'Mascotas': '#a855f7',
-      'Seguros': '#1268ff',
-      'Impuestos': '#00b9e8',
-      'Ahorro e Inversion': '#00e7a8',
-      'Otros': '#fbbf24',
-      'Comida': '#1268ff',
-      'Servicios': '#7228e8',
-      'Hogar': '#ffa500',
-      'Educación': '#6ea8ff',
-    };
-    return map[nombre] ?? this.colores[nombre] ?? '#94a3b8';
-  };
+  colorPorNombre = (nombre: string): string =>
+    this.categoriasService.colorDeCategoria(nombre);
 
   // Período que se muestra en tarjetas/gráficos (Este mes / Mes anterior)
   periodo = signal<'actual' | 'anterior'>('actual');

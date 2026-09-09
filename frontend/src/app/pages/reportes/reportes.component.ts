@@ -270,32 +270,9 @@ export class ReportesComponent implements OnInit {
   totalIngresosVisibles = computed(() => this.ingresosVisibles().reduce((s, i) => s + Number(i.monto), 0));
   donutCenterTotal = computed(() => this.currencyService.formatear(this.totalGastosVisibles()));
 
-  /* ─── Colores de categorías (esquema compartido del Dashboard) ─── */
-  private static readonly COLOR_CATEGORIA: { [key: string]: string } = {
-    'Alimentacion': '#1268ff',
-    'Transporte': '#00b9e8',
-    'Vivienda': '#7228e8',
-    'Servicios Publicos': '#ff6b9d',
-    'Comunicaciones': '#00e7a8',
-    'Salud': '#ffa500',
-    'Educacion': '#6ea8ff',
-    'Entretenimiento': '#c084fc',
-    'Ropa y Calzado': '#fbbf24',
-    'Compras': '#00d0a8',
-    'Viajes': '#ff6b9d',
-    'Mascotas': '#a855f7',
-    'Seguros': '#1268ff',
-    'Impuestos': '#00b9e8',
-    'Ahorro e Inversion': '#00e7a8',
-    'Otros': '#fbbf24',
-    'Comida': '#1268ff',
-    'Servicios': '#7228e8',
-  };
-
+  /* ─── Colores de categorías (esquema compartido del sistema) ─── */
   colorCategoria(nombre: string): string {
-    const n = (nombre || '').trim().toLowerCase();
-    const exact = Object.keys(ReportesComponent.COLOR_CATEGORIA).find((k) => k.toLowerCase() === n);
-    return exact ? ReportesComponent.COLOR_CATEGORIA[exact] : '#fbbf24';
+    return this.categoriasService.colorDeCategoria(nombre);
   }
 
   getIconoCategoria(nombre?: string): string {
@@ -468,10 +445,10 @@ export class ReportesComponent implements OnInit {
           backgroundColor: esTotal ? 'rgba(0,231,168,0.8)' : (ctx: any) => {
             const chart = ctx.chart;
             const { ctx: c, chartArea } = chart;
-            if (!chartArea) return 'rgba(0,231,168,0.1)';
+            if (!chartArea) return 'rgba(0,231,168,0.05)';
             const gradient = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-            gradient.addColorStop(0, 'rgba(0,231,168,0.3)');
-            gradient.addColorStop(1, 'rgba(0,231,168,0.05)');
+            gradient.addColorStop(0, 'rgba(0,231,168,0.16)');
+            gradient.addColorStop(1, 'rgba(0,231,168,0.02)');
             return gradient;
           },
           fill: true,
@@ -495,10 +472,10 @@ export class ReportesComponent implements OnInit {
           backgroundColor: esTotal ? 'rgba(255,66,89,0.8)' : (ctx: any) => {
             const chart = ctx.chart;
             const { ctx: c, chartArea } = chart;
-            if (!chartArea) return 'rgba(255,66,89,0.1)';
+            if (!chartArea) return 'rgba(255,66,89,0.05)';
             const gradient = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-            gradient.addColorStop(0, 'rgba(255,66,89,0.3)');
-            gradient.addColorStop(1, 'rgba(255,66,89,0.05)');
+            gradient.addColorStop(0, 'rgba(255,66,89,0.14)');
+            gradient.addColorStop(1, 'rgba(255,66,89,0.02)');
             return gradient;
           },
           fill: true,
@@ -530,10 +507,10 @@ export class ReportesComponent implements OnInit {
           } : (ctx: any) => {
             const chart = ctx.chart;
             const { ctx: c, chartArea } = chart;
-            if (!chartArea) return 'rgba(18,104,255,0.1)';
+            if (!chartArea) return 'rgba(18,104,255,0.05)';
             const gradient = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-            gradient.addColorStop(0, 'rgba(18,104,255,0.4)');
-            gradient.addColorStop(1, 'rgba(18,104,255,0.05)');
+            gradient.addColorStop(0, 'rgba(18,104,255,0.16)');
+            gradient.addColorStop(1, 'rgba(18,104,255,0.02)');
             return gradient;
           },
           hoverBackgroundColor: esTotal ? (ctx: any) => {
@@ -712,16 +689,16 @@ export class ReportesComponent implements OnInit {
           hoverBackgroundColor: '#7c8db0',
           borderRadius: 6,
           borderSkipped: false,
-          maxBarThickness: 26,
+          barThickness: 14,
         },
         {
           label: `Período actual (${etiquetaActual})`,
           data: nombres.map((n) => this.currencyService.convertir(currMap.get(n) || 0)),
-          backgroundColor: '#1268ff',
-          hoverBackgroundColor: '#3d82ff',
+          backgroundColor: nombres.map((n) => this.categoriasService.colorDeCategoria(n)),
+          hoverBackgroundColor: nombres.map((n) => this.categoriasService.colorDeCategoria(n)),
           borderRadius: 6,
           borderSkipped: false,
-          maxBarThickness: 26,
+          barThickness: 14,
         },
       ],
     };
@@ -730,6 +707,7 @@ export class ReportesComponent implements OnInit {
   comparacionChartOptions = computed<any>(() => ({
     responsive: true,
     maintainAspectRatio: false,
+    indexAxis: 'y' as const,
     interaction: { mode: 'index', intersect: false },
     plugins: {
       legend: {
@@ -745,17 +723,21 @@ export class ReportesComponent implements OnInit {
         padding: 12,
         callbacks: {
           label: (item: any) =>
-            `${item.dataset.label}: ${this.currencyService.formatearValor(Number(item.parsed.y ?? item.parsed))}`,
+            `${item.dataset.label}: ${this.currencyService.formatearValor(Number(item.parsed.x ?? item.parsed))}`,
         },
       },
     },
     scales: {
-      x: { grid: { display: false }, ticks: { color: '#8290b5', font: { size: 11, family: 'Inter' } }, border: { display: false } },
-      y: {
+      x: {
         grid: { color: 'rgba(122,160,255,0.07)' },
-        ticks: { color: '#8290b5', font: { size: 10, family: 'Inter' } },
+        ticks: { color: '#8290b5', font: { size: 10, family: 'Inter' }, callback: (val: any) => this.currencyService.formatearValor(Number(val), 0) },
         border: { display: false },
         beginAtZero: true,
+      },
+      y: {
+        grid: { display: false },
+        ticks: { color: '#bcc7e8', font: { size: 11, family: 'Inter', weight: '500' }, crossAlign: 'far' as const },
+        border: { display: false },
       },
     },
   }));
