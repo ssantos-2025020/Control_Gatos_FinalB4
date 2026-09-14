@@ -107,7 +107,7 @@
             (ngModelChange)="filtroCategoriaId.set($event); onFiltroCambio()"
           >
             <option value="">Todas las categorías</option>
-            <option *ngFor="let c of categorias()" [value]="c.id">{{ c.nombre }}</option>
+            <option *ngFor="let c of categoriasGasto()" [value]="c.id">{{ c.nombre }}</option>
           </select>
           <select
             class="input-filter select-filter"
@@ -267,7 +267,7 @@
         <div class="form-row">
           <div class="form-field">
             <label for="categoriaId">
-              <lucide-icon [name]="'folder-tag'" [size]="14" class="field-icon"></lucide-icon> Categoría
+              <lucide-icon [name]="'tag'" [size]="14" class="field-icon"></lucide-icon> Categoría
             </label>
             <div class="input-with-preview">
               <span class="cat-dot" [style.background]="colorCategoriaSeleccionada()"></span>

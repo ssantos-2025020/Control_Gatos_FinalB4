@@ -60,6 +60,9 @@ export class GastosComponent implements OnInit, OnDestroy {
   categorias = signal<Categoria[]>([]);
   usuarios = signal<Usuario[]>([]);
 
+  // Catálogo apto para gastos (tipo GASTO o AMBAS).
+  categoriasGasto = computed(() => this.categorias().filter((c) => this.categoriasService.esCategoriaGasto(c)));
+
   // Filtros
   filtroSearch = signal('');
   filtroCategoriaId = signal('');
@@ -774,9 +777,16 @@ export class GastosComponent implements OnInit, OnDestroy {
     if (this.guardando()) return;
 
     const v = this.gastoForm.value;
+    const montoNum = Number(String(v.monto ?? '').replace(/[^\d.]/g, ''));
+    if (!Number.isFinite(montoNum) || montoNum <= 0) {
+      this.gastoForm.get('monto')?.setErrors({ montoInvalido: true });
+      this.gastoForm.markAllAsTouched();
+      this.mostrarToast('Ingresa un monto válido mayor a 0.');
+      return;
+    }
     const input = {
       descripcion: v.descripcion,
-      monto: Number(String(v.monto).replace(/,/g, '')),
+      monto: montoNum,
       fecha: v.fecha,
       categoriaId: v.categoriaId,
       metodo: v.metodo,

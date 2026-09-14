@@ -5,7 +5,7 @@ import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } 
 import { ChartConfiguration, ChartOptions } from 'chart.js';
 import { BaseChartDirective } from 'ng2-charts';
 import { AuthService } from '../../services/auth.service';
-import { CategoriasService, Categoria } from '../../services/categorias.service';
+import { CategoriasService, Categoria, TipoCategoria } from '../../services/categorias.service';
 import { GastosService, Gasto } from '../../services/gastos.service';
 import { CurrencyService } from '../../services/currency.service';
 import { ConfigService } from '../../services/config.service';
@@ -16,23 +16,50 @@ import { LucideIconComponent } from '../../components/lucide-icon/lucide-icon.co
 
 const PREFS_KEY = 'cg_categorias_visual';
 const COLORES = ['#1268ff', '#00b9e8', '#00e7a8', '#7228e8', '#ff6b9d', '#00d0a8', '#ffa500', '#fbbf24', '#6ea8ff', '#c084fc', '#ff8a9a', '#ef4444', '#22c55e', '#eab308', '#f97316', '#a855f7', '#06b6d4', '#84cc16', '#8b5cf6', '#ec4899'];
-const ICONOS = ['tag', 'utensils', 'car', 'zap', 'wifi', 'heart-pulse', 'graduation-cap', 'clapperboard', 'shirt', 'shopping-bag', 'plane', 'paw-print', 'home', 'wallet', 'piggy-bank'];
+const ICONOS = ['tag', 'utensils', 'coffee', 'car', 'bus', 'fuel', 'home', 'sofa', 'zap', 'wifi', 'phone', 'heart-pulse', 'stethoscope', 'dumbbell', 'graduation-cap', 'school', 'book', 'clapperboard', 'film', 'music', 'gamepad-2', 'ticket', 'shirt', 'shopping-bag', 'credit-card', 'briefcase', 'laptop', 'smartphone', 'plane', 'map-pin', 'paw-print', 'baby', 'gift', 'wallet', 'piggy-bank', 'hand-coins', 'percent', 'sparkles', 'star', 'hammer', 'shield', 'landmark'];
 const ICON_LABELS: Record<string, string> = {
   tag: 'Etiqueta',
   utensils: 'Comida',
+  coffee: 'Café',
   car: 'Transporte',
+  bus: 'Transporte público',
+  fuel: 'Combustible',
+  home: 'Hogar',
+  sofa: 'Sofá',
   zap: 'Servicios',
   wifi: 'Internet',
+  phone: 'Teléfono',
   'heart-pulse': 'Salud',
+  stethoscope: 'Consulta médica',
+  dumbbell: 'Gimnasio',
   'graduation-cap': 'Educación',
+  school: 'Escuela',
+  book: 'Libros',
   clapperboard: 'Entretenimiento',
+  film: 'Cine/Streaming',
+  music: 'Música',
+  'gamepad-2': 'Videojuegos',
+  ticket: 'Eventos',
   shirt: 'Ropa',
   'shopping-bag': 'Compras',
+  'credit-card': 'Tarjetas',
+  briefcase: 'Trabajo',
+  laptop: 'Computadora',
+  smartphone: 'Celular',
   plane: 'Viajes',
+  'map-pin': 'Ubicación',
   'paw-print': 'Mascotas',
-  home: 'Hogar',
+  baby: 'Hijos',
+  gift: 'Regalos',
   wallet: 'Billetera',
   'piggy-bank': 'Ahorro',
+  'hand-coins': 'Finanzas',
+  percent: 'Impuestos',
+  sparkles: 'Extras',
+  star: 'Favorito',
+  hammer: 'Reparaciones',
+  shield: 'Seguros',
+  landmark: 'Banco',
 };
 
 interface CatPref {
@@ -85,6 +112,9 @@ export class CategoriasComponent implements OnInit, OnDestroy {
   iconoElegido = signal(false);
   iconoMenuAbierto = signal(false);
   descripcion = signal('');
+  tipoSeleccionado = signal<TipoCategoria>('AMBAS');
+
+  labelTipo = (tipo?: TipoCategoria): string => CategoriasService.labelTipo(tipo);
 
   filtroBusqueda = signal('');
   filtroEstado = signal<'Todas' | 'Activa' | 'Inactiva'>('Todas');
@@ -346,6 +376,7 @@ export class CategoriasComponent implements OnInit, OnDestroy {
     this.formErrorMsg.set(null);
     const pref = this.prefs()[categoria.id];
     this.categoriaForm.reset({ nombre: categoria.nombre });
+    this.tipoSeleccionado.set((categoria.tipo as TipoCategoria) ?? 'AMBAS');
     this.colorSeleccionado.set(pref?.color ?? categoria.color ?? this.categoriasService.colorDeCategoria(categoria.nombre));
     this.iconoSeleccionado.set(pref?.icono ?? categoria.icono ?? 'tag');
     this.iconoElegido.set(!!(pref?.icono ?? categoria.icono));
@@ -384,6 +415,7 @@ export class CategoriasComponent implements OnInit, OnDestroy {
     this.categoriaEditando.set(null);
     this.formErrorMsg.set(null);
     this.categoriaForm.reset({ nombre: '' });
+    this.tipoSeleccionado.set('AMBAS');
     this.colorSeleccionado.set(this.getColorLibre());
     this.iconoSeleccionado.set('tag');
     this.iconoElegido.set(false);
@@ -443,7 +475,7 @@ export class CategoriasComponent implements OnInit, OnDestroy {
     };
 
     if (editando) {
-      this.categoriasService.updateCategoria(editando.id, nombre).subscribe({
+      this.categoriasService.updateCategoria(editando.id, nombre, this.tipoSeleccionado()).subscribe({
         next: () => onSuccess(editando.id),
         error: (err) => {
           this.guardando.set(false);
@@ -453,7 +485,7 @@ export class CategoriasComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.categoriasService.createCategoria(nombre).subscribe({
+    this.categoriasService.createCategoria(nombre, this.tipoSeleccionado()).subscribe({
       next: (cat) => onSuccess(cat.id),
       error: (err) => {
         this.guardando.set(false);

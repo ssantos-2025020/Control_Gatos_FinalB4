@@ -95,6 +95,7 @@
                 <thead>
                   <tr>
                     <th>Categoría</th>
+                    <th>Tipo</th>
                     <th>Descripción</th>
                     <th>Color</th>
                     <th class="text-right">Gastos</th>
@@ -110,6 +111,11 @@
                         <span class="cat-avatar" [style.background]="f.color"><lucide-icon [name]="f.icono" [size]="15"></lucide-icon></span>
                         <span class="cat-name">{{ f.categoria.nombre }}</span>
                       </div>
+                    </td>
+                    <td>
+                      <span class="estado-badge" [class.ingreso]="f.categoria.tipo === 'INGRESO'" [class.ambas]="f.categoria.tipo === 'AMBAS'">
+                        {{ labelTipo(f.categoria.tipo) }}
+                      </span>
                     </td>
                     <td>
                       <span class="cat-desc" [title]="f.descripcion">{{ f.descripcion || '—' }}</span>
@@ -203,6 +209,15 @@
           <label for="campo-nombre">Nombre *</label>
           <input id="campo-nombre" formControlName="nombre" type="text" class="form-input" maxlength="60" placeholder="Ej. Comida, Transporte..." />
           <span *ngIf="nombreInvalido" class="form-error"><lucide-icon [name]="'info'" [size]="12"></lucide-icon> El nombre de la categoría es obligatorio</span>
+        </div>
+
+        <div class="form-field">
+          <label for="campo-tipo">Tipo</label>
+          <select id="campo-tipo" class="form-input" [ngModel]="tipoSeleccionado()" [ngModelOptions]="{standalone: true}" (ngModelChange)="tipoSeleccionado.set($event)">
+            <option value="GASTO">Gasto</option>
+            <option value="INGRESO">Ingreso</option>
+            <option value="AMBAS">Ingreso y Gasto</option>
+          </select>
         </div>
 
         <div class="form-field">
