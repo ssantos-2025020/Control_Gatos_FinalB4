@@ -128,6 +128,22 @@ Abre `http://localhost:4200` en el navegador e inicia sesión con el usuario adm
 | `ADMIN_NOMBRE` | No | Nombre mostrado del admin | `Administrador` |
 | `GOOGLE_CLIENT_ID` | No | Client ID OAuth de Google (si falta, se usa el ID de desarrollo embebido) | `12345-xxxxxxxx.apps.googleusercontent.com` |
 
+**Copia este bloque en `backend/.env` y reemplaza los valores entre `<...>`:**
+
+```bash
+# backend/.env
+PORT=2500
+DATABASE_URL="postgresql://postgres:TU_CONTRASENA_DE_POSTGRES@localhost:5432/control_gastos"
+JWT_SECRET=<genera_una_clave_larga_y_aleatoria>
+JWT_EXPIRES_IN=3h
+ADMIN_EMAIL=admin@controlgastos.com
+ADMIN_PASSWORD=<tu_contrasena_de_admin>
+ADMIN_NOMBRE=Administrador
+GOOGLE_CLIENT_ID=879432250502-la0hitfpf8obq59vu6p5f22dsom9hlka.apps.googleusercontent.com
+```
+
+> `JWT_SECRET` y `DATABASE_URL` son obligatorias; sin ellas el backend no arranca. El `GOOGLE_CLIENT_ID` que viene en el bloque es el de desarrollo (sirve solo en `localhost`).
+
 ### Frontend (no usa variables del sistema)
 
 El frontend se configura editando `frontend/src/environments/environment.ts`:
