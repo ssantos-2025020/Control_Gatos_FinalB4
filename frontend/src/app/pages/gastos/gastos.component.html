@@ -358,6 +358,13 @@
     </div>
   </div>
 
+  <!-- Aviso: elemento movido a la papelera -->
+  <app-papelera-aviso
+    *ngIf="papeleraAviso()"
+    [mensaje]="papeleraAviso()!"
+    (cerrar)="papeleraAviso.set(null)"
+  ></app-papelera-aviso>
+
   <!-- Toast de éxito -->
   <div class="gastos-toast" *ngIf="toast()">
     <lucide-icon [name]="'check-circle'" [size]="16"></lucide-icon>

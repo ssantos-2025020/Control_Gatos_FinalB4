@@ -1,6 +1,7 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { CurrencyService } from '../../services/currency.service';
 import { ConfigService, FormatoFecha, FormatoHora, ZONAS_HORARIAS } from '../../services/config.service';
@@ -21,14 +22,22 @@ const MAX_FOTO_BYTES = 5 * 1024 * 1024;
   styleUrls: ['../dashboard/dashboard.component.css', './configuracion.component.css'],
   templateUrl: './configuracion.component.html',
 })
-export class ConfiguracionComponent {
+export class ConfiguracionComponent implements OnInit {
   private authService = inject(AuthService);
+  private route = inject(ActivatedRoute);
   configService = inject(ConfigService);
   currencyService = inject(CurrencyService);
 
   seccion = signal<Seccion>('general');
   toast = signal<string | null>(null);
   private toastTimer: any = null;
+
+  ngOnInit(): void {
+    const sec = this.route.snapshot.queryParamMap.get('seccion');
+    if (sec === 'papelera') {
+      this.seccion.set('papelera');
+    }
+  }
 
   /* ── General ── */
   zonas = ZONAS_HORARIAS;

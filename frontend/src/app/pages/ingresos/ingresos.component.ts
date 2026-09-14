@@ -5,6 +5,7 @@ import { RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { LucideIconComponent } from '../../components/lucide-icon/lucide-icon.component';
+import { PapeleraAvisoComponent } from '../../components/papelera-aviso/papelera-aviso.component';
 import { IngresosService, Ingreso } from '../../services/ingresos.service';
 import { CategoriasService, Categoria } from '../../services/categorias.service';
 import { UsuariosService } from '../../services/usuarios.service';
@@ -23,7 +24,7 @@ interface ComparacionTexto {
 @Component({
   selector: 'app-ingresos',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink, SidebarComponent, LucideIconComponent],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink, SidebarComponent, LucideIconComponent, PapeleraAvisoComponent],
   templateUrl: './ingresos.component.html',
   styleUrls: ['../dashboard/dashboard.component.css', './ingresos.component.css'],
 })
@@ -91,6 +92,7 @@ export class IngresosComponent implements OnInit, OnDestroy {
   // Modal confirmar eliminar
   mostrarConfirmacion = signal(false);
   ingresoAEliminar = signal<Ingreso | null>(null);
+  papeleraAviso = signal<string | null>(null);
 
   private colorPorNombre = (n?: string | null): string =>
     this.categoriasService.colorDeCategoria(n ?? '');
@@ -483,6 +485,7 @@ export class IngresosComponent implements OnInit, OnDestroy {
         this.mostrarConfirmacion.set(false);
         this.ingresoAEliminar.set(null);
         this.cargarDatos();
+        this.papeleraAviso.set('El ingreso se movió a la papelera.');
       },
       error: (err) => {
         this.cargando.set(false);

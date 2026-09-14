@@ -13,6 +13,7 @@ import { crearFiltrosAnteriores } from '../../utils/filtros-record';
 import { SelectorMesComponent } from '../../components/selector-mes/selector-mes.component';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { LucideIconComponent } from '../../components/lucide-icon/lucide-icon.component';
+import { PapeleraAvisoComponent } from '../../components/papelera-aviso/papelera-aviso.component';
 import { PresupuestosService, Presupuesto } from '../../services/presupuestos.service';
 
 const MESES_LARGOS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -46,7 +47,7 @@ interface HistorialItem {
 @Component({
   selector: 'app-presupuestos',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink, BaseChartDirective, SelectorMesComponent, SidebarComponent, LucideIconComponent],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink, BaseChartDirective, SelectorMesComponent, SidebarComponent, LucideIconComponent, PapeleraAvisoComponent],
   templateUrl: './presupuestos.component.html',
   styleUrls: ['../dashboard/dashboard.component.css', './presupuestos.component.css'],
 })
@@ -108,6 +109,7 @@ export class PresupuestosComponent implements OnInit, OnDestroy {
   // Modal confirmar eliminar
   mostrarConfirmacion = signal(false);
   presupuestoAEliminar = signal<PresupuestoItem | null>(null);
+  papeleraAviso = signal<string | null>(null);
 
   get mesAnioLabel(): string {
     const { anio, mes } = this.mesVisual();
@@ -676,6 +678,7 @@ export class PresupuestosComponent implements OnInit, OnDestroy {
     }
     this.mostrarConfirmacion.set(false);
     this.presupuestoAEliminar.set(null);
+    this.papeleraAviso.set('El presupuesto se movió a la papelera.');
   }
 
   esLimitePersonalizado = (nombre: string): boolean => !!this.limites()[nombre];

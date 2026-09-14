@@ -1,9 +1,9 @@
 <div class="papelera-wrap">
   <div class="papelera-head">
-    <p class="settings-sub" *ngIf="!vacia()">
+    <p class="papelera-sub" *ngIf="!vacia()">
       Los elementos eliminados quedan aquí.<strong> Restaurarlos </strong>los devuelve a su lugar; eliminarlos ahí sí es definitivo.
     </p>
-    <p class="settings-sub" *ngIf="vacia()">
+    <p class="papelera-sub" *ngIf="vacia()">
       La papelera está vacía. Los elementos que borres (gastos, ingresos, presupuestos y categorías con sus registros)
       aparecerán aquí y podrás restaurarlos.
     </p>
@@ -48,6 +48,9 @@
     <div class="papelera-acciones">
       <button type="button" class="btn-ghost" (click)="cargar()" [disabled]="cargando()">
         <lucide-icon name="refresh-cw" [size]="15"></lucide-icon> Refrescar
+      </button>
+      <button type="button" class="btn-ghost" (click)="restaurarTodo()" [disabled]="totalFicha() === 0 || cargando()">
+        <lucide-icon name="rotate-ccw" [size]="15"></lucide-icon> Restaurar todo
       </button>
       <button type="button" class="btn-danger" (click)="vaciar()" [disabled]="vacia() || cargando()">
         <lucide-icon name="trash-2" [size]="15"></lucide-icon> Vaciar papelera

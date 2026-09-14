@@ -14,6 +14,7 @@ import { FiltroFechaService } from '../../services/filtro-fecha.service';
 import { crearFiltrosAnteriores } from '../../utils/filtros-record';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { LucideIconComponent } from '../../components/lucide-icon/lucide-icon.component';
+import { PapeleraAvisoComponent } from '../../components/papelera-aviso/papelera-aviso.component';
 import { Usuario } from '../../models/usuario.model';
 
 interface DesgloseCategoria {
@@ -33,7 +34,7 @@ interface DesgloseMetodo {
 @Component({
   selector: 'app-gastos',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, BaseChartDirective, RouterLink, SidebarComponent, LucideIconComponent],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, BaseChartDirective, RouterLink, SidebarComponent, LucideIconComponent, PapeleraAvisoComponent],
   templateUrl: './gastos.component.html',
   styleUrls: ['../dashboard/dashboard.component.css', './gastos.component.css'],
 })
@@ -93,6 +94,7 @@ export class GastosComponent implements OnInit, OnDestroy {
   // Modal confirmar eliminar
   mostrarConfirmacion = signal(false);
   gastoAEliminar = signal<Gasto | null>(null);
+  papeleraAviso = signal<string | null>(null);
 
   private coloresMetodo: { [key: string]: string } = {
     'Efectivo': '#00e7a8', 'Tarjeta': '#a855f7', 'Transferencia': '#1268ff',
@@ -832,6 +834,7 @@ export class GastosComponent implements OnInit, OnDestroy {
         this.mostrarConfirmacion.set(false);
         this.gastoAEliminar.set(null);
         this.cargarDatos();
+        this.papeleraAviso.set('El gasto se movió a la papelera.');
       },
       error: (err) => {
         this.cargando.set(false);

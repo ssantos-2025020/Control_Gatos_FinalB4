@@ -1,0 +1,9 @@
+<div class="pa-toast">
+  <lucide-icon [name]="'trash-2'" [size]="15" class="pa-icono"></lucide-icon>
+  <p class="pa-mensaje">{{ mensaje() }}</p>
+  <button type="button" class="pa-btn" (click)="irAPapelera()">
+    <lucide-icon [name]="'arrow-right'" [size]="13"></lucide-icon>
+    Ir a la papelera
+  </button>
+  <button type="button" class="pa-close" (click)="cerrar.emit()" title="Cerrar">&times;</button>
+</div>
