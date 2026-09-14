@@ -187,17 +187,47 @@ class PapeleraService {
       });
     }
 
-    try {
-      const filas = await query<{ id: string }>(
+    return withTransaction(async ({ query: q }) => {
+      const filas = await q<{ id: string; categoriaId?: string }>(
         `UPDATE ${tipo} SET "deletedAt" = NULL
          WHERE id = $1 AND "usuarioId" = $2 AND "deletedAt" IS NOT NULL
-         RETURNING id`,
+         RETURNING id${tipo === 'ingresos' ? '' : ', "categoriaId"'}`,
         [id, userId],
       );
       if (!filas[0]) throw new PapeleraItemNotFoundError();
+
+      // Si el gasto/presupuesto pertenecía a una categoría que también está en
+      // la papelera, se restaura la categoría junto con todo lo que le sigue.
+      let categoriaRestaurada = false;
+      if (tipo === 'gastos' || tipo === 'presupuestos') {
+        const catId = filas[0].categoriaId;
+        if (catId) {
+          const cats = await q<{ nombre: string }>(
+            `UPDATE categorias SET "deletedAt" = NULL, "updatedAt" = now()
+             WHERE id = $1 AND "usuarioId" = $2 AND "deletedAt" IS NOT NULL
+             RETURNING nombre`,
+            [catId, userId],
+          );
+          if (cats[0]) {
+            categoriaRestaurada = true;
+            await q(
+              `UPDATE gastos SET "deletedAt" = NULL WHERE "categoriaId" = $1 AND "usuarioId" = $2 AND "deletedAt" IS NOT NULL`,
+              [catId, userId],
+            );
+            await q(
+              `UPDATE presupuestos SET "deletedAt" = NULL WHERE "categoriaId" = $1 AND "usuarioId" = $2 AND "deletedAt" IS NOT NULL`,
+              [catId, userId],
+            );
+          }
+        }
+      }
+
       const base = tipo === 'gastos' ? 'Gasto' : tipo === 'ingresos' ? 'Ingreso' : 'Presupuesto';
-      return { message: `${base} restaurado.` };
-    } catch (error: any) {
+      const mensaje = categoriaRestaurada
+        ? `${base} restaurado. Su categoría estaba en la papelera y también fue restaurada, junto con sus gastos y presupuestos.`
+        : `${base} restaurado.`;
+      return { message: mensaje };
+    }).catch((error: any) => {
       // Un presupuesto no puede restaurarse si ya existe uno vigente para la
       // misma categoría y mes (índice único parcial).
       if (tipo === 'presupuestos' && error?.code === '23505') {
@@ -206,7 +236,85 @@ class PapeleraService {
         );
       }
       throw error;
+    });
+  }
+
+  public async restaurarTodo(tipo: TipoPapelera, userId: string): Promise<{
+    message: string;
+    restaurados: number;
+    omitidos?: number;
+  }> {
+    if (tipo === 'categorias') {
+      return withTransaction(async ({ query: q }) => {
+        const cats = await q<{ id: string }>(
+          `SELECT id FROM categorias WHERE "usuarioId" = $1 AND "deletedAt" IS NOT NULL`,
+          [userId],
+        );
+        let restaurados = 0;
+        for (const c of cats) {
+          await q(`UPDATE categorias SET "deletedAt" = NULL, "updatedAt" = now() WHERE id = $1`, [c.id]);
+          await q(
+            `UPDATE gastos SET "deletedAt" = NULL WHERE "categoriaId" = $1 AND "usuarioId" = $2 AND "deletedAt" IS NOT NULL`,
+            [c.id, userId],
+          );
+          await q(
+            `UPDATE presupuestos SET "deletedAt" = NULL WHERE "categoriaId" = $1 AND "usuarioId" = $2 AND "deletedAt" IS NOT NULL`,
+            [c.id, userId],
+          );
+          restaurados++;
+        }
+        return {
+          message:
+            restaurados > 0
+              ? 'Categorías restauradas con sus gastos y presupuestos.'
+              : 'No hay categorías en la papelera.',
+          restaurados,
+        };
+      });
     }
+
+    if (tipo === 'presupuestos') {
+      return withTransaction(async ({ query: q }) => {
+        const filas = await q<{ id: string }>(
+          `SELECT id FROM presupuestos WHERE "usuarioId" = $1 AND "deletedAt" IS NOT NULL`,
+          [userId],
+        );
+        let restaurados = 0;
+        let omitidos = 0;
+        for (const f of filas) {
+          try {
+            const upd = await q<{ id: string }>(
+              `UPDATE presupuestos SET "deletedAt" = NULL WHERE id = $1 AND "deletedAt" IS NOT NULL RETURNING id`,
+              [f.id],
+            );
+            if (upd[0]) restaurados++;
+          } catch (error: any) {
+            // Un presupuesto no puede restaurarse si ya existe uno vigente para
+            // la misma categoría y mes (índice único parcial).
+            if (error?.code === '23505') omitidos++;
+            else throw error;
+          }
+        }
+        const mensaje =
+          omitidos > 0
+            ? `${restaurados} presupuesto(s) restaurado(s). ${omitidos} se omitieron porque ya hay un presupuesto vigente con su misma categoría y mes.`
+            : `${restaurados} presupuesto(s) restaurado(s).`;
+        return { message: mensaje, restaurados, omitidos };
+      });
+    }
+
+    const filas = await query<{ id: string }>(
+      `UPDATE ${tipo} SET "deletedAt" = NULL
+       WHERE "usuarioId" = $1 AND "deletedAt" IS NOT NULL
+       RETURNING id`,
+      [userId],
+    );
+    const restaurados = filas.length;
+    const base = tipo === 'gastos' ? 'Gasto' : 'Ingreso';
+    return {
+      message: `${base}${restaurados === 1 ? '' : 's'} restaurado${restaurados === 1 ? '' : 's'}.`,
+      restaurados,
+    };
   }
 
   public async eliminarPermanente(tipo: TipoPapelera, id: string, userId: string): Promise<{ message: string }> {

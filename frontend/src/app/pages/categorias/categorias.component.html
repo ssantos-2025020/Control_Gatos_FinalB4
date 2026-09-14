@@ -285,3 +285,10 @@
   <span>{{ toast() }}</span>
   <button type="button" class="gastos-toast-close" (click)="toast.set(null)" title="Cerrar">&times;</button>
 </div>
+
+<!-- Aviso: elemento movido a la papelera -->
+<app-papelera-aviso
+  *ngIf="papeleraAviso()"
+  [mensaje]="papeleraAviso()!"
+  (cerrar)="papeleraAviso.set(null)"
+></app-papelera-aviso>

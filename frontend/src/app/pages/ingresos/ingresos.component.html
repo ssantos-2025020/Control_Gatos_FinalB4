@@ -275,4 +275,11 @@
       </div>
     </div>
   </div>
+
+  <!-- Aviso: elemento movido a la papelera -->
+  <app-papelera-aviso
+    *ngIf="papeleraAviso()"
+    [mensaje]="papeleraAviso()!"
+    (cerrar)="papeleraAviso.set(null)"
+  ></app-papelera-aviso>
 </div>

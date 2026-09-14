@@ -13,6 +13,7 @@ import { FiltroFechaService } from '../../services/filtro-fecha.service';
 import { crearFiltrosAnteriores } from '../../utils/filtros-record';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { LucideIconComponent } from '../../components/lucide-icon/lucide-icon.component';
+import { PapeleraAvisoComponent } from '../../components/papelera-aviso/papelera-aviso.component';
 
 const PREFS_KEY = 'cg_categorias_visual';
 const COLORES = ['#1268ff', '#00b9e8', '#00e7a8', '#7228e8', '#ff6b9d', '#00d0a8', '#ffa500', '#fbbf24', '#6ea8ff', '#c084fc', '#ff8a9a', '#ef4444', '#22c55e', '#eab308', '#f97316', '#a855f7', '#06b6d4', '#84cc16', '#8b5cf6', '#ec4899'];
@@ -72,7 +73,7 @@ interface CatPref {
 @Component({
   selector: 'app-categorias',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, BaseChartDirective, RouterLink, SidebarComponent, LucideIconComponent],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, BaseChartDirective, RouterLink, SidebarComponent, LucideIconComponent, PapeleraAvisoComponent],
   templateUrl: './categorias.component.html',
   styleUrl: './categorias.component.css',
 })
@@ -98,6 +99,7 @@ export class CategoriasComponent implements OnInit, OnDestroy {
   formErrorMsg = signal<string | null>(null);
   toast = signal<string | null>(null);
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
+  papeleraAviso = signal<string | null>(null);
 
   categoriaForm!: FormGroup;
   categoriaEditando = signal<Categoria | null>(null);
@@ -514,6 +516,7 @@ export class CategoriasComponent implements OnInit, OnDestroy {
       );
       this.categorias.update((list) => list.filter((c) => c.id !== categoria.id));
       this.pagina.set(1);
+      this.papeleraAviso.set(`La categoría "${categoria.nombre}", sus gastos y presupuestos se movieron a la papelera.`);
     };
 
     this.categoriasService.deleteCategoria(categoria.id).subscribe({

@@ -8,9 +8,16 @@
   margin-bottom: 2px;
 }
 
-.papelera-head .settings-sub {
+.papelera-sub {
   margin: 0;
   max-width: 560px;
+  color: var(--text-muted, #8290b5);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.papelera-sub strong {
+  color: var(--text-primary, #e7ecff);
 }
 
 .papelera-toolbar {
@@ -35,7 +42,7 @@
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
-  color: var(--texto-suave, #8b93a7);
+  color: var(--text-secondary, #bcc7e8);
   font-size: 0.86rem;
   font-weight: 500;
   cursor: pointer;
@@ -43,14 +50,15 @@
 }
 
 .papelera-tab:hover {
-  background: rgba(99, 102, 241, 0.08);
-  color: var(--texto, #1c2030);
+  background: var(--glass-hover, rgba(18, 104, 255, 0.08));
+  color: var(--text-primary, #e7ecff);
 }
 
 .papelera-tab.active {
-  background: rgba(99, 102, 241, 0.12);
-  color: var(--primario, #6366f1);
-  border-color: rgba(99, 102, 241, 0.25);
+  background: var(--blue-active-gradient, linear-gradient(90deg, #1268ff, #00b9e8));
+  color: var(--text-white, #ffffff);
+  border-color: transparent;
+  box-shadow: 0 6px 16px -6px var(--blue-shadow, rgba(18, 104, 255, 0.6));
 }
 
 .papelera-tab-count {
@@ -59,8 +67,13 @@
   font-size: 0.72rem;
   padding: 1px 6px;
   border-radius: 999px;
-  background: rgba(99, 102, 241, 0.15);
-  color: var(--primario, #6366f1);
+  background: var(--blue-bg, rgba(18, 104, 255, 0.08));
+  color: var(--blue-light, #6ea8ff);
+}
+
+.papelera-tab.active .papelera-tab-count {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
 }
 
 .papelera-acciones {
@@ -73,7 +86,7 @@
   align-items: center;
   gap: 6px;
   font-size: 0.82rem;
-  color: var(--texto-suave, #8b93a7);
+  color: var(--text-muted, #8290b5);
   margin: 0;
 }
 
@@ -92,13 +105,13 @@
   gap: 12px;
   padding: 10px 12px;
   border-radius: 10px;
-  background: rgba(0, 0, 0, 0.02);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: var(--panel-bg, #0d1224);
+  border: 1px solid var(--glass-border, rgba(122, 160, 255, 0.12));
 }
 
 .papelera-item:hover {
-  background: rgba(99, 102, 241, 0.04);
-  border-color: rgba(99, 102, 241, 0.2);
+  background: var(--glass-bg-hover, rgba(18, 104, 255, 0.1));
+  border-color: var(--glass-border-strong, rgba(122, 160, 255, 0.18));
 }
 
 .papelera-item-info {
@@ -115,12 +128,12 @@
   gap: 6px;
   font-size: 0.9rem;
   font-weight: 600;
-  color: var(--texto, #1c2030);
+  color: var(--text-primary, #e7ecff);
 }
 
 .papelera-item-sub {
   font-size: 0.78rem;
-  color: var(--texto-suave, #8b93a7);
+  color: var(--text-muted, #8290b5);
 }
 
 .papelera-item-monto {
@@ -130,11 +143,11 @@
 }
 
 .papelera-item-monto.negativo {
-  color: #dc2626;
+  color: var(--red, #ff4259);
 }
 
 .papelera-item-monto.positivo {
-  color: #16a34a;
+  color: var(--green, #00e7a8);
 }
 
 .papelera-item-acciones {
@@ -149,9 +162,9 @@
   gap: 6px;
   padding: 6px 11px;
   border-radius: 8px;
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--glass-border-input, rgba(122, 160, 255, 0.2));
   background: transparent;
-  color: var(--texto, #1c2030);
+  color: var(--text-secondary, #bcc7e8);
   font-size: 0.8rem;
   font-weight: 500;
   cursor: pointer;
@@ -159,8 +172,9 @@
 }
 
 .btn-ghost:hover:not(:disabled) {
-  background: rgba(99, 102, 241, 0.08);
-  border-color: rgba(99, 102, 241, 0.35);
+  background: var(--glass-bg-hover, rgba(18, 104, 255, 0.1));
+  border-color: var(--glass-border-strong, rgba(122, 160, 255, 0.18));
+  color: var(--text-primary, #e7ecff);
 }
 
 .btn-ghost:disabled,
@@ -176,9 +190,9 @@
   gap: 6px;
   padding: 6px 12px;
   border-radius: 8px;
-  border: 1px solid rgba(220, 38, 38, 0.35);
-  background: rgba(220, 38, 38, 0.08);
-  color: #dc2626;
+  border: 1px solid var(--red-border, rgba(255, 66, 89, 0.18));
+  background: var(--red-bg, rgba(255, 66, 89, 0.06));
+  color: var(--red, #ff4259);
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
@@ -186,8 +200,9 @@
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #dc2626;
-  color: #fff;
+  background: var(--red, #ff4259);
+  border-color: var(--red, #ff4259);
+  color: #ffffff;
 }
 
 .btn-danger-icon {
@@ -198,14 +213,14 @@
   border-radius: 8px;
   border: 1px solid transparent;
   background: transparent;
-  color: #dc2626;
+  color: var(--red, #ff4259);
   cursor: pointer;
   transition: all 0.18s ease;
 }
 
 .btn-danger-icon:hover:not(:disabled) {
-  background: rgba(220, 38, 38, 0.1);
-  border-color: rgba(220, 38, 38, 0.3);
+  background: var(--red-bg, rgba(255, 66, 89, 0.06));
+  border-color: var(--red-border, rgba(255, 66, 89, 0.18));
 }
 
 .papelera-vacio {
@@ -215,7 +230,7 @@
   gap: 8px;
   padding: 34px 12px;
   text-align: center;
-  color: var(--texto-suave, #8b93a7);
+  color: var(--text-muted, #8290b5);
   font-size: 0.88rem;
   margin: 0;
 }
@@ -230,8 +245,9 @@
   max-width: 340px;
   padding: 11px 14px;
   border-radius: 12px;
-  background: #161a2b;
-  color: #fff;
+  background: var(--bg-dropdown, #0f1630);
+  border: 1px solid var(--glass-border-strong, rgba(122, 160, 255, 0.18));
+  color: var(--text-heading, #ffffff);
   font-size: 0.85rem;
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.3);
   z-index: 90;
@@ -241,7 +257,7 @@
   margin-left: 4px;
   background: transparent;
   border: none;
-  color: #cbd2e0;
+  color: var(--text-secondary, #bcc7e8);
   font-size: 1rem;
   line-height: 1;
   cursor: pointer;

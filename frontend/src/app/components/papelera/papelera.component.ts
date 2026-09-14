@@ -13,6 +13,13 @@ const NOMBRE_SINGULAR: Record<Ficha, string> = {
   presupuestos: 'presupuesto',
 };
 
+const NOMBRE_PLURAL: Record<Ficha, string> = {
+  categorias: 'categorías',
+  gastos: 'gastos',
+  ingresos: 'ingresos',
+  presupuestos: 'presupuestos',
+};
+
 @Component({
   selector: 'app-papelera',
   standalone: true,
@@ -106,6 +113,26 @@ export class PapeleraComponent implements OnInit {
       },
       error: (err) => {
         this.mostrarToast(err?.error?.message ?? 'No se pudo restaurar el elemento.');
+      },
+    });
+  }
+
+  restaurarTodo(): void {
+    const tipo = this.ficha();
+    if (this.totalFicha() === 0) return;
+    const plural = NOMBRE_PLURAL[tipo];
+    if (!confirm(`¿Restaurar todos los ${plural} que están en la papelera?`)) {
+      return;
+    }
+    this.cargando.set(true);
+    this.papeleraService.restaurarTodo(tipo).subscribe({
+      next: (r) => {
+        this.mostrarToast(r.message);
+        this.cargar();
+      },
+      error: (err) => {
+        this.cargando.set(false);
+        this.mostrarToast(err?.error?.message ?? 'No se pudieron restaurar los elementos.');
       },
     });
   }

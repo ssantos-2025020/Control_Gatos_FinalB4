@@ -67,6 +67,13 @@ export class PapeleraService {
     return this.http.post<{ message: string }>(`${this.apiUrl}/${tipo}/${id}/restaurar`, {});
   }
 
+  restaurarTodo(tipo: TipoPapelera): Observable<{ message: string; restaurados: number; omitidos?: number }> {
+    return this.http.post<{ message: string; restaurados: number; omitidos?: number }>(
+      `${this.apiUrl}/restaurar-todo/${tipo}`,
+      {}
+    );
+  }
+
   eliminarPermanente(tipo: TipoPapelera, id: string): Observable<{ message: string }> {
     return this.http.delete<{ message: string }>(`${this.apiUrl}/${tipo}/${id}/permanente`);
   }

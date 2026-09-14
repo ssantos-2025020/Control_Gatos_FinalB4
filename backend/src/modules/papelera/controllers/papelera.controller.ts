@@ -57,6 +57,29 @@ class PapeleraController {
     }
   }
 
+  public async restaurarTodo(req: Request, res: Response): Promise<void> {
+    const userId = req.user?.id;
+    const { tipo } = req.params;
+
+    if (!userId) {
+      res.status(401).json({ message: 'Usuario no autenticado.' });
+      return;
+    }
+
+    if (!TIPOS_PAPELERA.includes(tipo as TipoPapelera)) {
+      res.status(400).json({ message: 'Tipo de elemento de papelera inválido.' });
+      return;
+    }
+
+    try {
+      const resultado = await papeleraService.restaurarTodo(tipo as TipoPapelera, userId);
+      res.status(200).json(resultado);
+    } catch (error) {
+      console.error('[PapeleraController] Error al restaurar todo:', error);
+      res.status(500).json({ message: 'Error al restaurar todos los elementos.' });
+    }
+  }
+
   public async eliminarPermanente(req: Request, res: Response): Promise<void> {
     const userId = req.user?.id;
     const { tipo, id } = req.params;
