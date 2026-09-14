@@ -19,7 +19,7 @@ export class UsuariosComponent implements OnInit, OnDestroy {
   private usuariosService = inject(UsuariosService);
   private fb = inject(FormBuilder);
 
-  usuarioActual = this.authService.getUsuario();
+  usuarioActual = computed(() => this.authService.getUsuario());
 
   usuarios = signal<Usuario[]>([]);
   filtroBusqueda = signal('');
@@ -179,7 +179,7 @@ export class UsuariosComponent implements OnInit, OnDestroy {
   }
 
   public eliminarUsuario(usuario: Usuario): void {
-    if (usuario.email === this.usuarioActual?.email) {
+    if (usuario.email === this.usuarioActual()?.email) {
       alert('No puedes eliminar tu propio usuario.');
       return;
     }
@@ -202,7 +202,7 @@ export class UsuariosComponent implements OnInit, OnDestroy {
   }
 
   public esMiUsuario(usuario: Usuario): boolean {
-    return usuario.email === this.usuarioActual?.email;
+    return usuario.email === this.usuarioActual()?.email;
   }
 
   public esUltimoAdmin(usuario: Usuario): boolean {

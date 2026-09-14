@@ -10,7 +10,6 @@ import { CategoriasService, Categoria } from '../../services/categorias.service'
 import { CurrencyService } from '../../services/currency.service';
 import { ConfigService } from '../../services/config.service';
 import { FiltroFechaService } from '../../services/filtro-fecha.service';
-import { PRESUPUESTOS_BASE } from '../../services/mock-data';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { LucideIconComponent } from '../../components/lucide-icon/lucide-icon.component';
 import { NotaInformativaComponent } from '../../components/nota-informativa/nota-informativa.component';
@@ -282,7 +281,8 @@ export class ReportesComponent implements OnInit {
     if (n.includes('servicio')) return 'zap';
     if (n.includes('entreten')) return 'clapperboard';
     if (n.includes('salud')) return 'heart-pulse';
-    if (n.includes('hogar')) return 'home';
+    if (n.includes('hogar') || n.includes('vivienda')) return 'home';
+    if (n.includes('sueldo') || n.includes('salario')) return 'wallet';
     if (n.includes('compras')) return 'shopping-bag';
     if (n.includes('educ')) return 'graduation-cap';
     if (n.includes('viaje')) return 'plane';
@@ -290,10 +290,11 @@ export class ReportesComponent implements OnInit {
   }
 
   withAlpha(hex: string, alpha: number): string {
-    const h = (hex || '#000000').replace('#', '');
-    const r = parseInt(h.slice(0, 2), 16);
-    const g = parseInt(h.slice(2, 4), 16);
-    const b = parseInt(h.slice(4, 6), 16);
+    const limpio = String(hex || '').replace('#', '').trim();
+    const valido = /^[0-9a-fA-F]{6}$/.test(limpio) ? limpio : '94a3b8';
+    const r = parseInt(valido.slice(0, 2), 16);
+    const g = parseInt(valido.slice(2, 4), 16);
+    const b = parseInt(valido.slice(4, 6), 16);
     return `rgba(${r},${g},${b},${alpha})`;
   }
 
@@ -303,7 +304,7 @@ export class ReportesComponent implements OnInit {
 
   /* ─── Dona: gastos por categoría ─── */
   private agruparPorCategoria(lista: Gasto[]): { name: string; amountUSD: number; amountFormatted: string; percentage: number; color: string }[] {
-    const base = new Set(Object.keys(PRESUPUESTOS_BASE).map((k) => k.toLowerCase()));
+    const base = new Set(this.categorias().map((c) => c.nombre.toLowerCase()));
     const map: { [k: string]: { name: string; amountUSD: number; color: string } } = {};
     lista.forEach((g) => {
       const nom = this.categoriaNombre(g).trim() || 'Otros';
@@ -366,7 +367,6 @@ export class ReportesComponent implements OnInit {
             return [
               `Gastado: ${formatted}`,
               `Porcentaje: ${pct}%`,
-              `Color: ${cat?.color || '#94a3b8'}`,
             ];
           },
         },
@@ -636,7 +636,7 @@ export class ReportesComponent implements OnInit {
 
   /* ─── Gastos por mes (comparación): dos meses consecutivos por categoría ─── */
   private mapPorCategoria(lista: Gasto[]): Map<string, number> {
-    const base = new Set(Object.keys(PRESUPUESTOS_BASE).map((k) => k.toLowerCase()));
+    const base = new Set(this.categorias().map((c) => c.nombre.toLowerCase()));
     const map = new Map<string, number>();
     lista.forEach((g) => {
       const nom = this.categoriaNombre(g).trim() || 'Otros';

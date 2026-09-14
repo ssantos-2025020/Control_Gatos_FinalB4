@@ -12,7 +12,7 @@ import { LucideIconComponent } from '../lucide-icon/lucide-icon.component';
         <lucide-icon [name]="'bell-ring'" [size]="20"></lucide-icon>
       </div>
       <div class="alerta-body">
-        <strong>Atención</strong> — Has utilizado <strong>{{ porcentaje }}%</strong> de su presupuesto de <strong>{{ nombreCategoria }}</strong>.
+        <strong>Atención</strong> — Has utilizado <strong>{{ porcentaje }}%</strong> de tu presupuesto de <strong>{{ nombreCategoria }}</strong>.
       </div>
       <button class="alerta-btn" (click)="verPresupuestos.emit()">Ver presupuestos</button>
     </div>

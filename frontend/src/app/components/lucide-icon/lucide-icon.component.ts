@@ -15,6 +15,9 @@ import {
   ChartNoAxesCombined, Mail, Globe, Monitor, Shield, CreditCard,
   Lightbulb, TrendingUpDown, Send, LogIn, Gift, Wrench, X, Info,
   Camera, GripHorizontal, Lock,
+  Baby, Book, Briefcase, Bus, Coffee, Dumbbell, Film, Fuel, Gamepad2,
+  Hammer, HandCoins, Laptop, MapPin, Music, Percent, Phone, School,
+  Smartphone, Sofa, Sparkles, Star, Stethoscope, Ticket, Accessibility, KeyRound
 } from 'lucide';
 
 const ICON_MAP: Record<string, any[]> = {
@@ -101,6 +104,31 @@ const ICON_MAP: Record<string, any[]> = {
   'camera': Camera,
   'grip-horizontal': GripHorizontal,
   'lock': Lock,
+  'baby': Baby,
+  'book': Book,
+  'briefcase': Briefcase,
+  'bus': Bus,
+  'coffee': Coffee,
+  'dumbbell': Dumbbell,
+  'film': Film,
+  'fuel': Fuel,
+  'gamepad-2': Gamepad2,
+  'hammer': Hammer,
+  'hand-coins': HandCoins,
+  'laptop': Laptop,
+  'map-pin': MapPin,
+  'music': Music,
+  'percent': Percent,
+  'phone': Phone,
+  'school': School,
+  'smartphone': Smartphone,
+  'sofa': Sofa,
+  'sparkles': Sparkles,
+  'star': Star,
+  'stethoscope': Stethoscope,
+  'ticket': Ticket,
+  'accessibility': Accessibility,
+  'key-round': KeyRound,
 };
 
 @Component({

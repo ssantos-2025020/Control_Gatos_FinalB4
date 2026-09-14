@@ -10,12 +10,12 @@ import { AuthService } from '../../services/auth.service';
 import { GastosService, Gasto } from '../../services/gastos.service';
 import { IngresosService, Ingreso } from '../../services/ingresos.service';
 import { CategoriasService, Categoria } from '../../services/categorias.service';
+import { PresupuestosService, Presupuesto } from '../../services/presupuestos.service';
 import { CurrencyService } from '../../services/currency.service';
 import { ConfigService } from '../../services/config.service';
 import { FiltroFechaService } from '../../services/filtro-fecha.service';
 import { AlertaPresupuestoComponent } from '../../components/alerta-presupuesto/alerta-presupuesto.component';
 import { SelectorMesComponent } from '../../components/selector-mes/selector-mes.component';
-import { PRESUPUESTOS_BASE, PRESUPUESTO_TOTAL_BASE } from '../../services/mock-data';
 
 @Component({
   selector: 'app-dashboard',
@@ -30,6 +30,7 @@ export class DashboardComponent implements OnInit {
   private gastosService = inject(GastosService);
   private ingresosService = inject(IngresosService);
   private categoriasService = inject(CategoriasService);
+  private presupuestosService = inject(PresupuestosService);
   private router = inject(Router);
   private fb = inject(FormBuilder);
   currencyService = inject(CurrencyService);
@@ -43,18 +44,13 @@ export class DashboardComponent implements OnInit {
   gastos = signal<Gasto[]>([]);
   ingresos = signal<Ingreso[]>([]);
   categorias = signal<Categoria[]>([]);
+  presupuestosApi = signal<Presupuesto[]>([]);
+  private cargarToken = 0;
 
   mostrarGastoModal = signal(false);
-  mostrarTodosPresupuestos = signal(false);
-  mostrarTodosMovimientos = signal(false);
   filtroGranularidad = signal<'dia' | 'semana' | 'mes'>('dia');
   filtroPeriodoCategorias = signal<'mes' | 'mesAnterior' | 'tresMeses'>('mes');
   gastoForm!: FormGroup;
-
-  private getMesActual(): string {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  }
 
   getLabelMes(): string {
     return this.filtroFecha.getLabelMes();
@@ -125,13 +121,16 @@ export class DashboardComponent implements OnInit {
   totalGastadoPeriodo = computed(() => this.currencyService.formatear(this.totalGastadoPeriodoUSD()));
 
   private agruparGastosPorCategoria(list: Gasto[]) {
+    const base = this.categorias();
+    const baseSet = new Set(base.map((c) => c.nombre));
+
     const map: { [key: string]: { name: string; amountUSD: number; color: string } } = {};
 
     list.forEach((g) => {
       const rawName = g.categoria?.nombre || 'Sin Categoría';
-      // Las categorías sin presupuesto base se pliegan dentro de "Otros"
+      // Las categorías fuera del catálogo del usuario se pliegan dentro de "Otros"
       // para mantener la correspondencia con la vista de presupuestos.
-      const catName = PRESUPUESTOS_BASE[rawName] !== undefined ? rawName : 'Otros';
+      const catName = baseSet.has(rawName) ? rawName : 'Otros';
       if (!map[catName]) {
         map[catName] = { name: catName, amountUSD: 0, color: this.categoriasService.colorDeCategoria(catName) };
       }
@@ -351,7 +350,7 @@ export class DashboardComponent implements OnInit {
           callbacks: {
             title: (items: any) => {
               const label = items?.[0]?.label;
-              if (g === 'semana') return `Semana ${label ?? `${meses[m - 1]} ${y}`} ${meses[m - 1]} ${y}`;
+              if (g === 'semana') return `Semana ${label ?? `${meses[m - 1]} ${y}`}`;
               if (g === 'mes') return `${label ?? `${meses[m - 1]} ${y}`} · Total`;
               return `Día ${label ?? ''} ${meses[m - 1]} ${y}`;
             },
@@ -435,11 +434,15 @@ export class DashboardComponent implements OnInit {
             const cat = this.gastosPorCategoriaPeriodo()[item.dataIndex];
             const pct = total > 0 ? Math.round((cat?.amountUSD / total) * 100) : 0;
             const formatted = this.currencyService.formatearValor(Number(val));
-            return [
+            const limite = cat ? this.presupuestosApi().find((p) => p.nombre === cat.name) : null;
+            const lineas = [
               `Gastado: ${formatted}`,
               `Porcentaje: ${pct}%`,
-              `Presupuesto: ${this.currencyService.formatear(cat?.amountUSD * 1.5 || 0)}`,
             ];
+            if (limite && Number(limite.monto) > 0) {
+              lineas.push(`Presupuesto: ${this.currencyService.formatear(Number(limite.monto))}`);
+            }
+            return lineas;
           },
         },
       },
@@ -466,14 +469,6 @@ export class DashboardComponent implements OnInit {
   hasDonutChartData(): boolean {
     const data = this.donutChartData();
     return data.datasets && data.datasets[0] && data.datasets[0].data && data.datasets[0].data.length > 0;
-  }
-
-  getBarChartDataLength(): number {
-    return this.hasBarChartData() ? this.barChartData().datasets[0].data.length : 0;
-  }
-
-  getLineChartDataLength(): number {
-    return this.hasLineChartData() ? this.lineChartData().datasets[0].data.length : 0;
   }
 
   hasChartDataForGranularidad(): boolean {
@@ -536,7 +531,7 @@ export class DashboardComponent implements OnInit {
   resumenMensaje = computed(() => {
     const actual = this.totalGastadoUSD();
     const anterior = this.gastosMesAnterior().reduce((s, g) => s + Number(g.monto), 0);
-    if (anterior === 0) return { positivo: actual === 0, texto: actual > 0 ? 'Es su primer mes registrado' : 'Sin gastos este mes', pct: 0 };
+    if (anterior === 0) return { positivo: actual === 0, texto: actual > 0 ? 'Es tu primer mes registrado' : 'Sin gastos este mes', pct: 0 };
     const diff = Math.round(((actual - anterior) / anterior) * 100);
     if (actual <= anterior) {
       return { positivo: true, texto: `Has gastado ${Math.abs(diff)}% menos que el mes anterior`, pct: Math.abs(diff) };
@@ -546,29 +541,31 @@ export class DashboardComponent implements OnInit {
 
   presupuestos = computed(() => {
     const cats = this.gastosPorCategoria();
-    const presupuestosBase = PRESUPUESTOS_BASE;
+    const limitesApi = new Map(this.presupuestosApi().map((p) => [p.nombre, p.monto]));
 
-    return cats.map((c) => {
-      const limite = presupuestosBase[c.name] || Math.max(c.amountUSD * 1.5, 500);
-      const porcentaje = Math.round((c.amountUSD / limite) * 1000) / 10;
-      return {
-        nombre: c.name,
-        icono: this.getIconoCategoria(c.name),
-        gastado: c.amountFormatted,
-        gastadoNum: c.amountUSD,
-        limite: this.currencyService.formatear(limite),
-        limiteNum: limite,
-        porcentaje,
-        color: c.color,
-        alerta: porcentaje >= 80,
-      };
-    });
+    return cats
+      .filter((c) => c.amountUSD > 0 || (limitesApi.get(c.name) ?? 0) > 0)
+      .map((c) => {
+        const limite = limitesApi.get(c.name) ?? 0;
+        const porcentaje = limite > 0 ? Math.round((c.amountUSD / limite) * 1000) / 10 : 0;
+        return {
+          nombre: c.name,
+          icono: this.getIconoCategoria(c.name),
+          gastado: c.amountFormatted,
+          gastadoNum: c.amountUSD,
+          limite: this.currencyService.formatear(limite),
+          limiteNum: limite,
+          porcentaje,
+          color: c.color,
+          alerta: limite > 0 && porcentaje >= 80,
+        };
+      });
   });
 
   presupuestoTotales = computed(() => {
     const items = this.presupuestos();
     const usado = items.reduce((s, p) => s + p.gastadoNum, 0);
-    const limite = Math.max(items.reduce((s, p) => s + p.limiteNum, 0), PRESUPUESTO_TOTAL_BASE);
+    const limite = items.reduce((s, p) => s + p.limiteNum, 0);
     const pct = limite > 0 ? Math.round((usado / limite) * 1000) / 10 : 0;
     return { usado, limite, pct };
   });
@@ -577,26 +574,6 @@ export class DashboardComponent implements OnInit {
     this.currencyService.formatear(this.presupuestoTotales().limite));
 
   presupuestosVisibles = computed(() => this.presupuestos().slice(0, 5));
-
-  todosLosMovimientos = computed(() => {
-    const gastos = this.gastosDelMes().map((g) => ({
-      tipo: 'gasto' as const,
-      descripcion: g.descripcion,
-      categoria: g.categoria?.nombre || 'Sin categoría',
-      fecha: g.fecha,
-      monto: Number(g.monto),
-      icono: this.getIconoCategoria(g.categoria?.nombre),
-    }));
-    const ingresosList = this.ingresosDelMes().map((i) => ({
-      tipo: 'ingreso' as const,
-      descripcion: i.descripcion,
-      categoria: 'Ingreso',
-      fecha: i.fecha,
-      monto: Number(i.monto),
-      icono: 'banknote',
-    }));
-    return [...gastos, ...ingresosList].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
-  });
 
   presupuestoCritico = computed(() => {
     const pres = this.presupuestos().filter(p => p.alerta);
@@ -615,6 +592,7 @@ export class DashboardComponent implements OnInit {
   }
 
   public cargarDatos(): void {
+    const token = ++this.cargarToken;
     this.cargando.set(true);
     this.errorMsg.set(null);
 
@@ -630,6 +608,7 @@ export class DashboardComponent implements OnInit {
     let ingresosLoaded = false;
 
     const checkDone = () => {
+      if (token !== this.cargarToken) return;
       if (!gastosLoaded || !ingresosLoaded) return;
       const filtrar = (item: { fecha: string }, rango: { start: Date; end: Date }) => {
         const f = new Date(item.fecha);
@@ -644,13 +623,19 @@ export class DashboardComponent implements OnInit {
     };
 
     this.categoriasService.getCategoriasCompletas().subscribe({
-      next: (cats) => this.categorias.set(cats),
-      error: () => this.categorias.set([]),
+      next: (cats) => { if (token === this.cargarToken) this.categorias.set(cats); },
+      error: () => { if (token === this.cargarToken) this.categorias.set([]); },
+    });
+
+    this.presupuestosService.getPresupuestos().subscribe({
+      next: (pres) => { if (token === this.cargarToken) this.presupuestosApi.set(pres); },
+      error: () => { if (token === this.cargarToken) this.presupuestosApi.set([]); },
     });
 
     this.gastosService.getGastosCompletos().subscribe({
-      next: (g) => { this.gastos.set(g); gastosLoaded = true; checkDone(); },
+      next: (g) => { if (token !== this.cargarToken) return; this.gastos.set(g); gastosLoaded = true; checkDone(); },
       error: (err) => {
+        if (token !== this.cargarToken) return;
         this.cargando.set(false);
         this.errorMsg.set('No se pudieron cargar los gastos.');
         console.error(err);
@@ -658,8 +643,9 @@ export class DashboardComponent implements OnInit {
     });
 
     this.ingresosService.getIngresosCompletos().subscribe({
-      next: (i) => { this.ingresos.set(i); ingresosLoaded = true; checkDone(); },
+      next: (i) => { if (token !== this.cargarToken) return; this.ingresos.set(i); ingresosLoaded = true; checkDone(); },
       error: (err) => {
+        if (token !== this.cargarToken) return;
         this.cargando.set(false);
         this.errorMsg.set('No se pudieron cargar los ingresos.');
         console.error(err);
@@ -727,10 +713,6 @@ export class DashboardComponent implements OnInit {
   public irAPresupuestos(): void { this.router.navigate(['/presupuestos']); }
   public setFiltroGranularidad(f: 'dia' | 'semana' | 'mes'): void { this.filtroGranularidad.set(f); }
   public setFiltroPeriodoCategorias(f: 'mes' | 'mesAnterior' | 'tresMeses'): void { this.filtroPeriodoCategorias.set(f); }
-
-  public scrollA(id: string): void {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
 
   ngOnDestroy(): void {
     // Cleanup any subscriptions if needed in the future
