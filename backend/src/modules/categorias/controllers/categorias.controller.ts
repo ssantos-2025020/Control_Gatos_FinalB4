@@ -1,11 +1,18 @@
 import { Request, Response } from 'express';
-import { categoriasService, CategoriaNotFoundError } from '../services/categorias.service';
+import { categoriasService, CategoriaNotFoundError, CategoriaProtegidaError } from '../services/categorias.service';
 import { CreateCategoriaDTO, UpdateCategoriaDTO } from '../models/categorias.model';
 
 class CategoriasController {
   public async getCategorias(req: Request, res: Response): Promise<void> {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({ message: 'Usuario no autenticado.' });
+      return;
+    }
+
     try {
-      const categorias = await categoriasService.getCategorias();
+      const categorias = await categoriasService.getCategorias(userId);
       res.status(200).json(categorias);
     } catch (error) {
       console.error('[CategoriasController] Error al obtener categorías:', error);
@@ -15,9 +22,19 @@ class CategoriasController {
 
   public async getCategoriaById(req: Request, res: Response): Promise<void> {
     const { id } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({ message: 'Usuario no autenticado.' });
+      return;
+    }
 
     try {
-      const categoria = await categoriasService.getCategoriaById(id);
+      const categoria = await categoriasService.getCategoriaById(id, userId);
+      if (!categoria) {
+        res.status(404).json({ message: 'Categoría no encontrada.' });
+        return;
+      }
       res.status(200).json(categoria);
     } catch (error) {
       console.error('[CategoriasController] Error al obtener categoría:', error);
@@ -26,7 +43,13 @@ class CategoriasController {
   }
 
   public async createCategoria(req: Request, res: Response): Promise<void> {
+    const userId = req.user?.id;
     const data = req.body as CreateCategoriaDTO;
+
+    if (!userId) {
+      res.status(401).json({ message: 'Usuario no autenticado.' });
+      return;
+    }
 
     if (!data.nombre || data.nombre.trim() === '') {
       res.status(400).json({ message: 'El nombre de la categoría es obligatorio.' });
@@ -34,10 +57,14 @@ class CategoriasController {
     }
 
     try {
-      const categoria = await categoriasService.createCategoria(data);
+      const categoria = await categoriasService.createCategoria(userId, data);
       res.status(201).json(categoria);
     } catch (error: any) {
       if (error.message === 'No se pudo crear la categoría.') {
+        res.status(400).json({ message: error.message });
+        return;
+      }
+      if (error.message?.includes('tipo de categoría')) {
         res.status(400).json({ message: error.message });
         return;
       }
@@ -48,14 +75,24 @@ class CategoriasController {
 
   public async updateCategoria(req: Request, res: Response): Promise<void> {
     const { id } = req.params;
+    const userId = req.user?.id;
     const data = req.body as UpdateCategoriaDTO;
 
+    if (!userId) {
+      res.status(401).json({ message: 'Usuario no autenticado.' });
+      return;
+    }
+
     try {
-      const categoria = await categoriasService.updateCategoria(id, data);
+      const categoria = await categoriasService.updateCategoria(id, userId, data);
       res.status(200).json(categoria);
-    } catch (error) {
+    } catch (error: any) {
       if (error instanceof CategoriaNotFoundError) {
         res.status(404).json({ message: error.message });
+        return;
+      }
+      if (error.message?.includes('tipo de categoría')) {
+        res.status(400).json({ message: error.message });
         return;
       }
       console.error('[CategoriasController] Error al actualizar categoría:', error);
@@ -65,13 +102,23 @@ class CategoriasController {
 
   public async deleteCategoria(req: Request, res: Response): Promise<void> {
     const { id } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({ message: 'Usuario no autenticado.' });
+      return;
+    }
 
     try {
-      await categoriasService.deleteCategoria(id);
+      await categoriasService.deleteCategoria(id, userId);
       res.status(204).send();
     } catch (error) {
       if (error instanceof CategoriaNotFoundError) {
         res.status(404).json({ message: error.message });
+        return;
+      }
+      if (error instanceof CategoriaProtegidaError) {
+        res.status(400).json({ message: error.message });
         return;
       }
       console.error('[CategoriasController] Error al eliminar categoría:', error);
