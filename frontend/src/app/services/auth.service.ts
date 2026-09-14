@@ -7,6 +7,7 @@ export interface Usuario {
   email: string;
   nombre: string;
   role: string;
+  foto?: string;
 }
 
 export interface LoginResponse {
@@ -27,8 +28,18 @@ export interface MeResponse {
   usuario: Usuario;
 }
 
+export interface GoogleLoginRequest {
+  idToken: string;
+}
+
 const TOKEN_KEY = 'auth_token';
 const USUARIO_KEY = 'auth_usuario';
+
+/**
+ * Foto de perfil elegida en la sesión actual (NO se persiste en el backend):
+ * se conserva solo mientras dura la sesión y se borra al cerrar sesión.
+ */
+const FOTO_SESION_KEY = 'auth_foto_sesion';
 
 /** Segundos antes de la expiración en que se muestra el aviso de cierre de sesión. */
 export const AVISO_SEGUNDOS = 60;
@@ -75,6 +86,9 @@ export class AuthService {
   /** Mensaje (personalizado) de sesión expirada. La UI reacciona para volver al login. */
   readonly sesionExpirada = signal<string | null>(null);
 
+  /** Usuario de la sesión actual (reactive: la UI reacciona al cambiar foto, etc.). */
+  readonly usuarioSesion = signal<Usuario | null>(this.getUsuario());
+
   get token(): string | null {
     return localStorage.getItem(TOKEN_KEY);
   }
@@ -98,23 +112,64 @@ export class AuthService {
     return this.http.get<MeResponse>(`${this.apiUrl}/me`);
   }
 
+  googleLogin(idToken: string): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(`${this.apiUrl}/google`, { idToken }).pipe(
+      tap((respuesta) => this.guardarSesion(respuesta.token, respuesta.usuario)),
+    );
+  }
+
+  /**
+   * Cambia la foto de perfil SOLO para la sesión actual: no se envía al
+   * backend ni se persiste. Permanece visible hasta cerrar sesión y al volver
+   * a entrar se muestra la foto guardada en la cuenta (o ninguna).
+   */
+  cambiarFotoLocal(foto: string): void {
+    localStorage.setItem(FOTO_SESION_KEY, foto);
+    this.aplicarFotoSesion();
+  }
+
   getUsuario(): Usuario | null {
     const raw = localStorage.getItem(USUARIO_KEY);
     if (!raw) {
       return null;
     }
     try {
-      return JSON.parse(raw) as Usuario;
+      const u = JSON.parse(raw) as Usuario;
+      const fotoSesion = localStorage.getItem(FOTO_SESION_KEY);
+      if (fotoSesion) {
+        u.foto = fotoSesion;
+      }
+      return u;
     } catch {
       return null;
+    }
+  }
+
+  /**
+   * Reaplica la foto de sesión sobre el usuario archivo localStorage y sobre
+   * el signal. Se llama tras guardarSesion (p.ej. renovación de token), para
+   * que el refresh en silencio NO borre la foto elegida en la sesión.
+   */
+  private aplicarFotoSesion(): void {
+    const foto = localStorage.getItem(FOTO_SESION_KEY);
+    const actual = this.getUsuario();
+    if (foto && actual) {
+      this.actualizarDatosEnStorage({ ...actual, foto });
     }
   }
 
   /** Actualiza los datos mostrables del usuario en la sesión actual (sin llamar al backend). */
   actualizarDatos(nombre: string, email: string): void {
     const actual = this.getUsuario();
-    if (!actual) return;
-    localStorage.setItem(USUARIO_KEY, JSON.stringify({ ...actual, nombre, email }));
+    if (!actual) {
+      return;
+    }
+    this.actualizarDatosEnStorage({ ...actual, nombre, email });
+  }
+
+  private actualizarDatosEnStorage(usuario: Usuario): void {
+    localStorage.setItem(USUARIO_KEY, JSON.stringify(usuario));
+    this.usuarioSesion.set(usuario);
   }
 
   isAuthenticated(): boolean {
@@ -277,14 +332,30 @@ registrarActividad(): void {
     this.detenerVigilanciaInterval();
     this.detenerRenovarInterval();
     this.sesionExpirada.set(null);
+    this.usuarioSesion.set(null);
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USUARIO_KEY);
+    localStorage.removeItem(FOTO_SESION_KEY);
+
+    // Desactiva el one-tap/auto-selección de Google para que, al volver a
+    // iniciar sesión, se muestre SIEMPRE el selector de cuentas y no quede
+    // atascado con la sesión anterior.
+    const gid = (window as any)?.google?.accounts?.id;
+    if (gid && typeof gid.disableAutoSelect === 'function') {
+      try {
+        gid.disableAutoSelect();
+      } catch {
+        /* sin efecto si el SDK no está activo */
+      }
+    }
   }
 
   private guardarSesion(token: string, usuario: Usuario): void {
     this.sesionExpirada.set(null);
     localStorage.setItem(TOKEN_KEY, token);
     localStorage.setItem(USUARIO_KEY, JSON.stringify(usuario));
+    this.aplicarFotoSesion();
+    this.usuarioSesion.set(this.getUsuario());
     this.iniciarVigilancia();
   }
 
