@@ -6,8 +6,9 @@ import { CurrencyService } from '../../services/currency.service';
 import { ConfigService, FormatoFecha, FormatoHora, ZONAS_HORARIAS } from '../../services/config.service';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { LucideIconComponent } from '../../components/lucide-icon/lucide-icon.component';
+import { PapeleraComponent } from '../../components/papelera/papelera.component';
 
-type Seccion = 'general' | 'perfil' | 'moneda';
+type Seccion = 'general' | 'perfil' | 'moneda' | 'papelera';
 type FormatoNumeroLocal = 'latam' | 'en';
 type PosicionLocal = 'antes' | 'despues';
 
@@ -16,7 +17,7 @@ const MAX_FOTO_BYTES = 5 * 1024 * 1024;
 @Component({
   selector: 'app-configuracion',
   standalone: true,
-  imports: [CommonModule, FormsModule, SidebarComponent, LucideIconComponent],
+  imports: [CommonModule, FormsModule, SidebarComponent, LucideIconComponent, PapeleraComponent],
   styleUrls: ['../dashboard/dashboard.component.css', './configuracion.component.css'],
   templateUrl: './configuracion.component.html',
 })

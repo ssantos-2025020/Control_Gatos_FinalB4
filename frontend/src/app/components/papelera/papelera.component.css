@@ -1,0 +1,249 @@
+.papelera-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.papelera-head {
+  margin-bottom: 2px;
+}
+
+.papelera-head .settings-sub {
+  margin: 0;
+  max-width: 560px;
+}
+
+.papelera-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.papelera-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.papelera-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--texto-suave, #8b93a7);
+  font-size: 0.86rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.papelera-tab:hover {
+  background: rgba(99, 102, 241, 0.08);
+  color: var(--texto, #1c2030);
+}
+
+.papelera-tab.active {
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--primario, #6366f1);
+  border-color: rgba(99, 102, 241, 0.25);
+}
+
+.papelera-tab-count {
+  min-width: 20px;
+  text-align: center;
+  font-size: 0.72rem;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--primario, #6366f1);
+}
+
+.papelera-acciones {
+  display: flex;
+  gap: 8px;
+}
+
+.papelera-resumen {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--texto-suave, #8b93a7);
+  margin: 0;
+}
+
+.papelera-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 430px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.papelera-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.papelera-item:hover {
+  background: rgba(99, 102, 241, 0.04);
+  border-color: rgba(99, 102, 241, 0.2);
+}
+
+.papelera-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.papelera-item-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--texto, #1c2030);
+}
+
+.papelera-item-sub {
+  font-size: 0.78rem;
+  color: var(--texto-suave, #8b93a7);
+}
+
+.papelera-item-monto {
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.papelera-item-monto.negativo {
+  color: #dc2626;
+}
+
+.papelera-item-monto.positivo {
+  color: #16a34a;
+}
+
+.papelera-item-acciones {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: transparent;
+  color: var(--texto, #1c2030);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: rgba(99, 102, 241, 0.35);
+}
+
+.btn-ghost:disabled,
+.btn-danger:disabled,
+.btn-danger-icon:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  background: rgba(220, 38, 38, 0.08);
+  color: #dc2626;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #dc2626;
+  color: #fff;
+}
+
+.btn-danger-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #dc2626;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.btn-danger-icon:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.1);
+  border-color: rgba(220, 38, 38, 0.3);
+}
+
+.papelera-vacio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 34px 12px;
+  text-align: center;
+  color: var(--texto-suave, #8b93a7);
+  font-size: 0.88rem;
+  margin: 0;
+}
+
+.papelera-toast {
+  position: fixed;
+  bottom: 22px;
+  right: 22px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  max-width: 340px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  background: #161a2b;
+  color: #fff;
+  font-size: 0.85rem;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.3);
+  z-index: 90;
+}
+
+.papelera-toast-close {
+  margin-left: 4px;
+  background: transparent;
+  border: none;
+  color: #cbd2e0;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}

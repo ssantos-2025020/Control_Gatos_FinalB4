@@ -125,6 +125,9 @@ class GastosService {
     const condiciones: string[] = [];
     const params: unknown[] = [];
 
+    // Los registros en la papelera no se listan.
+    condiciones.push(`g."deletedAt" IS NULL`);
+
     // Filtrado por usuario si es un rol USER regular
     if (userRole !== 'ADMIN') {
       params.push(userId);
@@ -165,7 +168,7 @@ class GastosService {
     userId: string,
     userRole: 'ADMIN' | 'USER',
   ): Promise<Gasto> {
-    const filas = await query<GastoRow>(`${SELECT_BASE} WHERE g.id = $1`, [id]);
+    const filas = await query<GastoRow>(`${SELECT_BASE} WHERE g.id = $1 AND g."deletedAt" IS NULL`, [id]);
     const gasto = filas[0];
 
     if (!gasto) {
@@ -200,9 +203,11 @@ class GastosService {
     const saldoFilas = await query<{ ingreso: string; gasto: string }>(
       `SELECT
          (SELECT COALESCE(SUM(monto), 0) FROM ingresos
-          WHERE "usuarioId" = $1 AND EXTRACT(YEAR FROM fecha) = $2 AND EXTRACT(MONTH FROM fecha) = $3) AS ingreso,
+          WHERE "usuarioId" = $1 AND EXTRACT(YEAR FROM fecha) = $2 AND EXTRACT(MONTH FROM fecha) = $3
+            AND "deletedAt" IS NULL) AS ingreso,
          (SELECT COALESCE(SUM(monto), 0) FROM gastos
-          WHERE "usuarioId" = $1 AND EXTRACT(YEAR FROM fecha) = $2 AND EXTRACT(MONTH FROM fecha) = $3 AND id <> $4) AS gasto`,
+          WHERE "usuarioId" = $1 AND EXTRACT(YEAR FROM fecha) = $2 AND EXTRACT(MONTH FROM fecha) = $3 AND id <> $4
+            AND "deletedAt" IS NULL) AS gasto`,
       [usuarioId, anio, mes, excluirActual],
     );
     const ingresoMes = Number(saldoFilas[0]?.ingreso ?? 0);
@@ -217,7 +222,7 @@ class GastosService {
       `SELECT c.nombre, p.monto
        FROM presupuestos p
        JOIN categorias c ON c.id = p."categoriaId"
-       WHERE p."categoriaId" = $1 AND p."usuarioId" = $2`,
+       WHERE p."categoriaId" = $1 AND p."usuarioId" = $2 AND p."deletedAt" IS NULL`,
       [categoriaId, usuarioId],
     );
 
@@ -226,7 +231,7 @@ class GastosService {
         `SELECT COALESCE(SUM(monto), 0) AS total FROM gastos
          WHERE "usuarioId" = $1 AND "categoriaId" = $2
            AND EXTRACT(YEAR FROM fecha) = $3 AND EXTRACT(MONTH FROM fecha) = $4
-           AND id <> $5`,
+           AND id <> $5 AND "deletedAt" IS NULL`,
         [usuarioId, categoriaId, anio, mes, excluirActual],
       );
       const usadoCat = Number(usado[0]?.total ?? 0);
@@ -245,7 +250,7 @@ class GastosService {
   ): Promise<Gasto> {
     // Validar categoría (debe pertenecer al usuario)
     const categoria = await query<{ id: string }>(
-      'SELECT id FROM categorias WHERE id = $1 AND "usuarioId" = $2',
+      'SELECT id FROM categorias WHERE id = $1 AND "usuarioId" = $2 AND "deletedAt" IS NULL',
       [data.categoriaId, userId],
     );
 
@@ -321,7 +326,7 @@ class GastosService {
     if (data.categoriaId !== undefined) {
       if (data.categoriaId !== null) {
         const categoria = await query<{ id: string }>(
-          'SELECT id FROM categorias WHERE id = $1 AND "usuarioId" = $2',
+          'SELECT id FROM categorias WHERE id = $1 AND "usuarioId" = $2 AND "deletedAt" IS NULL',
           [data.categoriaId, userId],
         );
         if (!categoria[0]) {
@@ -342,7 +347,7 @@ class GastosService {
 
     await query(`UPDATE gastos SET ${sets.join(', ')} WHERE id = $1`, params);
 
-    const filas = await query<GastoRow>(`${SELECT_BASE} WHERE g.id = $1`, [id]);
+    const filas = await query<GastoRow>(`${SELECT_BASE} WHERE g.id = $1 AND g."deletedAt" IS NULL`, [id]);
     return aGasto(filas[0]);
   }
 
@@ -350,7 +355,8 @@ class GastosService {
     // Verificar que exista el gasto y que el usuario tenga permisos
     await this.getGastoById(id, userId, userRole);
 
-    await query('DELETE FROM gastos WHERE id = $1', [id]);
+    // Borrado lógico: el gasto pasa a la papelera (restaurable).
+    await query('UPDATE gastos SET "deletedAt" = now() WHERE id = $1', [id]);
   }
 }
 

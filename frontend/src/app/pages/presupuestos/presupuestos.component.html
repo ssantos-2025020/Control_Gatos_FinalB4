@@ -364,7 +364,7 @@
       <h2>Eliminar presupuesto</h2>
       <button (click)="cancelarEliminar()" class="btn-close-modal">&times;</button>
     </div>
-    <p class="modal-hint">¿Seguro que deseas eliminar el presupuesto de <strong>{{ presupuestoAEliminar()?.nombre }}</strong>? Esta acción restablecerá el límite al valor por defecto.</p>
+    <p class="modal-hint">¿Seguro que deseas eliminar el presupuesto de <strong>{{ presupuestoAEliminar()?.nombre }}</strong> para <strong>{{ mesAnioLabel }}</strong>? Esta acción restablecerá el límite al valor por defecto en ese mes; los demás meses conservan su presupuesto.</p>
     <div class="modal-footer">
       <button type="button" (click)="cancelarEliminar()" class="btn-secondary">Cancelar</button>
       <button type="button" (click)="confirmarEliminar()" class="btn-danger">Eliminar</button>

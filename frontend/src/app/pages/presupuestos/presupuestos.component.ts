@@ -456,6 +456,7 @@ export class PresupuestosComponent implements OnInit, OnDestroy {
   }
   cambiarPeriodo(): void {
     this.pagina.set(1);
+    this.cargarDatos();
   }
 
   ngOnInit(): void {
@@ -534,7 +535,9 @@ export class PresupuestosComponent implements OnInit, OnDestroy {
         this.gastosService.getGastosCompletos().subscribe({
           next: (g) => {
             this.gastosTodos.set(g);
-            this.presupuestosService.getPresupuestos().subscribe({
+            this.presupuestosService
+              .getPresupuestos(this.mesVisual().mes, this.mesVisual().anio)
+              .subscribe({
               next: (pres) => {
                 this.presupuestosApi.set(pres);
                 const limites: { [key: string]: number } = {};
@@ -631,7 +634,9 @@ export class PresupuestosComponent implements OnInit, OnDestroy {
         this.mostrarToast('No se encontró la categoría seleccionada.');
         return;
       }
-      this.presupuestosService.createPresupuesto(cat.id, monto).subscribe({
+      this.presupuestosService
+        .createPresupuesto(cat.id, monto, this.mesVisual().mes, this.mesVisual().anio)
+        .subscribe({
         next: () => {
           this.limites.set({ ...this.limites(), [categoria]: monto });
           this.guardando.set(false);

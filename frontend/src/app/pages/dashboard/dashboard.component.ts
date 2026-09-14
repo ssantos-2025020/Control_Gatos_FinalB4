@@ -627,7 +627,9 @@ export class DashboardComponent implements OnInit {
       error: () => { if (token === this.cargarToken) this.categorias.set([]); },
     });
 
-    this.presupuestosService.getPresupuestos().subscribe({
+    this.presupuestosService
+      .getPresupuestos(this.filtroFecha.mes(), this.filtroFecha.anio())
+      .subscribe({
       next: (pres) => { if (token === this.cargarToken) this.presupuestosApi.set(pres); },
       error: () => { if (token === this.cargarToken) this.presupuestosApi.set([]); },
     });

@@ -495,7 +495,7 @@ export class CategoriasComponent implements OnInit, OnDestroy {
   }
 
   public eliminarCategoria(categoria: Categoria): void {
-    if (!confirm(`¿Estás seguro de eliminar la categoría "${categoria.nombre}"? Los gastos ya registrados con ella no se eliminarán y quedarán en la categoría "Otros".`)) {
+    if (!confirm(`¿Estás seguro de eliminar la categoría "${categoria.nombre}"? Sus gastos y presupuestos se moverán a la papelera y podrás restaurarlos cuando quieras.`)) {
       return;
     }
 
@@ -508,13 +508,9 @@ export class CategoriasComponent implements OnInit, OnDestroy {
       this.prefs.set(prefsNuevas);
       this.escribirPrefs(prefsNuevas);
 
-      const otros = this.categorias().find((c) => c.nombre === 'Otros');
-      this.gastos.set(
-        this.gastos().map((g) =>
-          g.categoriaId === categoria.id
-            ? { ...g, categoriaId: otros?.id ?? g.categoriaId, categoria: otros ?? g.categoria }
-            : g
-        )
+      // Los gastos y presupuestos de la categoría quedaron en la papelera.
+      this.gastos.update((list) =>
+        list.filter((g) => g.categoriaId !== categoria.id)
       );
       this.categorias.update((list) => list.filter((c) => c.id !== categoria.id));
       this.pagina.set(1);

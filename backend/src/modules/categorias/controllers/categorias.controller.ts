@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { categoriasService, CategoriaNotFoundError, CategoriaProtegidaError } from '../services/categorias.service';
+import { categoriasService, CategoriaNotFoundError } from '../services/categorias.service';
 import { CreateCategoriaDTO, UpdateCategoriaDTO } from '../models/categorias.model';
 
 class CategoriasController {
@@ -110,15 +110,11 @@ class CategoriasController {
     }
 
     try {
-      await categoriasService.deleteCategoria(id, userId);
-      res.status(204).send();
+      const resultado = await categoriasService.deleteCategoria(id, userId);
+      res.status(200).json(resultado);
     } catch (error) {
       if (error instanceof CategoriaNotFoundError) {
         res.status(404).json({ message: error.message });
-        return;
-      }
-      if (error instanceof CategoriaProtegidaError) {
-        res.status(400).json({ message: error.message });
         return;
       }
       console.error('[CategoriasController] Error al eliminar categoría:', error);
