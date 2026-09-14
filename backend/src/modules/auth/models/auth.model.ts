@@ -12,6 +12,7 @@ export interface UsuarioDTO {
   email: string;
   nombre: string;
   role: string;
+  foto?: string;
 }
 
 export interface LoginResponseDTO {
@@ -36,4 +37,15 @@ export interface JwtPayloadDTO {
 export interface MeResponseDTO {
   success: boolean;
   usuario: UsuarioDTO;
+}
+
+export interface GoogleLoginDTO {
+  idToken: string;
+}
+
+export interface GoogleUserInfo {
+  email: string;
+  name: string;
+  picture?: string;
+  sub: string;
 }
