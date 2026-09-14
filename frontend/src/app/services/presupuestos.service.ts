@@ -8,6 +8,8 @@ export interface Presupuesto {
   categoriaId: string;
   nombre: string;
   monto: number;
+  mes?: number;
+  anio?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -21,12 +23,14 @@ export class PresupuestosService {
   private readonly http = inject(HttpClient);
   private readonly apiUrl = `${environment.apiUrl}/presupuestos`;
 
-  getPresupuestos(): Observable<Presupuesto[]> {
-    return this.http.get<Presupuesto[]>(this.apiUrl);
+  getPresupuestos(mes: number, anio: number): Observable<Presupuesto[]> {
+    return this.http.get<Presupuesto[]>(this.apiUrl, {
+      params: { mes: String(mes), anio: String(anio) },
+    });
   }
 
-  createPresupuesto(categoriaId: string, monto: number): Observable<Presupuesto> {
-    return this.http.post<Presupuesto>(this.apiUrl, { categoriaId, monto });
+  createPresupuesto(categoriaId: string, monto: number, mes: number, anio: number): Observable<Presupuesto> {
+    return this.http.post<Presupuesto>(this.apiUrl, { categoriaId, monto, mes, anio });
   }
 
   updateMonto(id: string, monto: number): Observable<Presupuesto> {

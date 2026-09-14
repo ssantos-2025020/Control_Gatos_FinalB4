@@ -99,10 +99,11 @@ async function crearTablas(): Promise<void> {
       id          text PRIMARY KEY DEFAULT gen_random_uuid()::text,
       "usuarioId" text NOT NULL,
       "categoriaId" text NOT NULL,
+      mes         smallint NOT NULL,
+      anio        smallint NOT NULL,
       monto       numeric(10,2) NOT NULL,
       "createdAt" timestamptz NOT NULL DEFAULT now(),
       "updatedAt" timestamptz NOT NULL DEFAULT now(),
-      UNIQUE ("usuarioId", "categoriaId"),
       CONSTRAINT fk_presupuestos_usuario FOREIGN KEY ("usuarioId") REFERENCES usuarios(id) ON DELETE CASCADE,
       CONSTRAINT fk_presupuestos_categoria FOREIGN KEY ("categoriaId") REFERENCES categorias(id)
     )
@@ -236,16 +237,31 @@ async function asegurarColumnaCategorias(): Promise<void> {
 
 async function asegurarColumnaPresupuestos(): Promise<void> {
   await query(`ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS "usuarioId" text`);
+  await query(`ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS mes smallint`);
+  await query(`ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS anio smallint`);
 
   const admin = await query<{ id: string }>(`SELECT id FROM usuarios WHERE role = 'ADMIN' ORDER BY "createdAt" LIMIT 1`);
   if (admin[0]) {
     await query(`UPDATE presupuestos SET "usuarioId" = $1 WHERE "usuarioId" IS NULL`, [admin[0].id]);
   }
 
+  // Presupuestos de esquemas previos (sin mes/anio): se asignan al mes en curso
+  // para no perder el límite configurado.
+  await query(`
+    UPDATE presupuestos
+    SET mes = EXTRACT(MONTH FROM now())::smallint,
+        anio = EXTRACT(YEAR FROM now())::smallint
+    WHERE mes IS NULL OR anio IS NULL
+  `);
+
   await query(`ALTER TABLE presupuestos ALTER COLUMN "usuarioId" SET NOT NULL`);
-  await query(`ALTER TABLE presupuestos DROP CONSTRAINT IF EXISTS presupuestos_categoriaId_key`);
-  await query(`ALTER TABLE presupuestos DROP CONSTRAINT IF EXISTS presupuestos_usuarioId_categoriaId_key`);
-  await query(`ALTER TABLE presupuestos ADD CONSTRAINT presupuestos_usuarioId_categoriaId_key UNIQUE ("usuarioId", "categoriaId")`);
+  await query(`ALTER TABLE presupuestos ALTER COLUMN mes SET NOT NULL`);
+  await query(`ALTER TABLE presupuestos ALTER COLUMN anio SET NOT NULL`);
+  await query(`ALTER TABLE presupuestos DROP CONSTRAINT IF EXISTS "presupuestos_categoriaId_key"`);
+  await query(`ALTER TABLE presupuestos DROP CONSTRAINT IF EXISTS "presupuestos_usuarioId_categoriaId_key"`);
+  // El ADD previo creó la restricción con nombre en minúsculas (identificador sin comillas).
+  await query(`ALTER TABLE presupuestos DROP CONSTRAINT IF EXISTS presupuestos_usuarioid_categoriamesanio_key`);
+  await query(`ALTER TABLE presupuestos ADD CONSTRAINT presupuestos_usuarioid_categoriamesanio_key UNIQUE ("usuarioId", "categoriaId", mes, anio)`);
 }
 
 async function seedCategorias(): Promise<void> {
