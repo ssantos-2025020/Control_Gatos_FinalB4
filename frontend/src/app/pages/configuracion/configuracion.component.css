@@ -122,6 +122,10 @@
 }
 
 /* ─── Perfil ─── */
+.foto-input-hidden {
+  display: none;
+}
+
 .profile-head {
   display: flex;
   align-items: center;
@@ -146,6 +150,14 @@
   box-shadow: 0 10px 24px rgba(18, 104, 255, 0.35);
 }
 
+.cfg-avatar-img {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--glass-border);
+}
+
 .avatar-camera {
   position: absolute;
   right: -2px;
@@ -164,6 +176,12 @@
 }
 
 .avatar-camera:hover { transform: scale(1.1); }
+
+.avatar-camera:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
 
 .profile-head-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 

@@ -907,6 +907,7 @@ input[type="date"].form-input::-webkit-calendar-picker-indicator {
 
 .input-filter:focus { border-color: var(--blue-primary); background: rgba(255,255,255,0.06); box-shadow: 0 0 0 3px var(--blue-focus-ring); }
 .input-filter::placeholder { color: var(--text-placeholder); }
+select.input-filter option { background-color: var(--bg-sidebar); color: var(--text-primary); }
 .input-date { max-width: 140px; }
 .date-fields { display: flex; align-items: center; gap: 8px; }
 .date-sep { font-size: 12px; color: var(--text-muted); }

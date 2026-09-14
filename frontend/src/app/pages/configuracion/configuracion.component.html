@@ -30,18 +30,20 @@
           <p class="settings-sub">Información general del sistema.</p>
 
           <div class="cfg-grid">
-            <div class="cfg-field">
-              <label class="settings-label">Nombre de la aplicación</label>
-              <input class="form-input" [(ngModel)]="nombreApp" name="nombreApp" placeholder="Nombre de la aplicación" />
-            </div>
-
-            <div class="cfg-field">
-              <label class="settings-label">Descripción</label>
-              <div class="cfg-textarea">
-                <textarea class="form-input" rows="3" [(ngModel)]="descripcion" name="descripcion" placeholder="Describe el sistema"></textarea>
-                <lucide-icon class="cfg-resize" name="grip-horizontal" [size]="14"></lucide-icon>
+            <ng-container *ngIf="usuario()?.role === 'ADMIN'">
+              <div class="cfg-field">
+                <label class="settings-label">Nombre de la aplicación</label>
+                <input class="form-input" [(ngModel)]="nombreApp" name="nombreApp" placeholder="Nombre de la aplicación" />
               </div>
-            </div>
+
+              <div class="cfg-field">
+                <label class="settings-label">Descripción</label>
+                <div class="cfg-textarea">
+                  <textarea class="form-input" rows="3" [(ngModel)]="descripcion" name="descripcion" placeholder="Describe el sistema"></textarea>
+                  <lucide-icon class="cfg-resize" name="grip-horizontal" [size]="14"></lucide-icon>
+                </div>
+              </div>
+            </ng-container>
 
             <div class="cfg-field">
               <label class="settings-label">Formato de fecha</label>
@@ -78,28 +80,45 @@
           <p class="settings-sub">Información de su cuenta.</p>
 
           <div class="profile-head">
-            <div class="profile-avatar-wrap" *ngIf="usuario">
-              <div class="cfg-avatar">{{ inicial() }}</div>
-              <button type="button" class="avatar-camera" (click)="cambiarFoto()" [title]="'Cambiar foto'">
+            <input
+              id="foto-input"
+              type="file"
+              accept="image/*"
+              class="foto-input-hidden"
+              (change)="onFotoSeleccionada($event)"
+            />
+            <div class="profile-avatar-wrap" *ngIf="usuario()">
+              @if (usuario()?.foto) {
+                <img [src]="usuario()?.foto" [alt]="perfilNombre" class="cfg-avatar cfg-avatar-img" />
+              } @else {
+                <div class="cfg-avatar">{{ inicial() }}</div>
+              }
+              <button
+                type="button"
+                class="avatar-camera"
+                (click)="cambiarFoto()"
+                [disabled]="subiendoFoto()"
+                [title]="subiendoFoto() ? 'Subiendo foto...' : 'Cambiar foto'"
+              >
                 <lucide-icon name="camera" [size]="14"></lucide-icon>
               </button>
             </div>
             <div class="profile-head-info">
               <div class="profile-name">{{ perfilNombre || 'Sin nombre' }}</div>
               <div class="profile-email">{{ perfilEmail }}</div>
-              <span class="role-badge role-admin">ADMIN</span>
+              <span class="role-badge" [class.role-admin]="usuario()?.role === 'ADMIN'">{{ usuario()?.role || 'USER' }}</span>
             </div>
           </div>
 
           <div class="cfg-grid perfil-grid">
             <div class="cfg-field">
               <label class="settings-label">Nombre completo</label>
-              <input class="form-input" [(ngModel)]="perfilNombre" name="perfilNombre" placeholder="Su nombre completo" />
+              <input class="form-input" [(ngModel)]="perfilNombre" name="perfilNombre" placeholder="Tu nombre completo" />
             </div>
 
             <div class="cfg-field">
               <label class="settings-label">Nombre de usuario</label>
-              <input class="form-input cfg-readonly" [value]="perfilUsuario" readonly />
+              <input class="form-input cfg-readonly" [value]="perfilUsuario()" readonly />
             </div>
 
             <div class="cfg-field cfg-field-wide">
@@ -113,6 +132,9 @@
           </div>
 
           <div class="settings-actions">
+            <button class="btn-secondary" type="button" (click)="recuperarContrasena()">
+              <lucide-icon name="key-round" [size]="16"></lucide-icon> ¿Olvidaste tu contraseña? / Recuperar contraseña
+            </button>
             <button class="btn-primary" (click)="guardarPerfil()"><lucide-icon name="save" [size]="16"></lucide-icon> Guardar cambios</button>
           </div>
         </section>
