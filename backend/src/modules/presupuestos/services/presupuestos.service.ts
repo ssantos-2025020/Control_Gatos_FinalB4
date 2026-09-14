@@ -68,7 +68,7 @@ const SELECT_BASE = `
 class PresupuestosService {
   public async getPresupuestos(userId: string, mes: number, anio: number): Promise<Presupuesto[]> {
     const filas = await query<PresupuestoRow>(
-      `${SELECT_BASE} WHERE p."usuarioId" = $1 AND p.mes = $2 AND p.anio = $3 ORDER BY c.nombre ASC`,
+      `${SELECT_BASE} WHERE p."usuarioId" = $1 AND p.mes = $2 AND p.anio = $3 AND p."deletedAt" IS NULL ORDER BY c.nombre ASC`,
       [userId, mes, anio],
     );
     return filas.map(aPresupuesto);
@@ -76,7 +76,7 @@ class PresupuestosService {
 
   public async getPresupuestoById(id: string, userId: string): Promise<Presupuesto | null> {
     const filas = await query<PresupuestoRow>(
-      `${SELECT_BASE} WHERE p.id = $1 AND p."usuarioId" = $2`,
+      `${SELECT_BASE} WHERE p.id = $1 AND p."usuarioId" = $2 AND p."deletedAt" IS NULL`,
       [id, userId],
     );
     return filas[0] ? aPresupuesto(filas[0]) : null;
@@ -89,7 +89,7 @@ class PresupuestosService {
     anio: number,
   ): Promise<Presupuesto | null> {
     const filas = await query<PresupuestoRow>(
-      `${SELECT_BASE} WHERE p."categoriaId" = $1 AND p."usuarioId" = $2 AND p.mes = $3 AND p.anio = $4`,
+      `${SELECT_BASE} WHERE p."categoriaId" = $1 AND p."usuarioId" = $2 AND p.mes = $3 AND p.anio = $4 AND p."deletedAt" IS NULL`,
       [categoriaId, userId, mes, anio],
     );
     return filas[0] ? aPresupuesto(filas[0]) : null;
@@ -111,7 +111,7 @@ class PresupuestosService {
     }
 
     const categoria = await query<{ id: string }>(
-      'SELECT id FROM categorias WHERE id = $1 AND "usuarioId" = $2',
+      'SELECT id FROM categorias WHERE id = $1 AND "usuarioId" = $2 AND "deletedAt" IS NULL',
       [categoriaId, userId],
     );
     if (!categoria[0]) {
@@ -121,12 +121,13 @@ class PresupuestosService {
     const filas = await query<PresupuestoRow>(
       `INSERT INTO presupuestos (id, "usuarioId", "categoriaId", mes, anio, monto, "createdAt", "updatedAt")
        VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, now(), now())
-       ON CONFLICT ("usuarioId", "categoriaId", mes, anio) DO UPDATE SET monto = EXCLUDED.monto, "updatedAt" = now()
+       ON CONFLICT ("usuarioId", "categoriaId", mes, anio) WHERE "deletedAt" IS NULL
+       DO UPDATE SET monto = EXCLUDED.monto, "updatedAt" = now()
        RETURNING id, "usuarioId", "categoriaId", mes, anio, monto, "createdAt", "updatedAt"`,
       [userId, categoriaId, mes, anio, monto],
     );
 
-    const completa = await query<PresupuestoRow>(`${SELECT_BASE} WHERE p.id = $1`, [filas[0].id]);
+    const completa = await query<PresupuestoRow>(`${SELECT_BASE} WHERE p.id = $1 AND p."deletedAt" IS NULL`, [filas[0].id]);
     return aPresupuesto(completa[0]);
   }
 
@@ -137,7 +138,7 @@ class PresupuestosService {
 
     const filas = await query<PresupuestoRow>(
       `UPDATE presupuestos SET monto = $2, "updatedAt" = now()
-       WHERE id = $1 AND "usuarioId" = $3
+       WHERE id = $1 AND "usuarioId" = $3 AND "deletedAt" IS NULL
        RETURNING id, "usuarioId", "categoriaId", monto, "createdAt", "updatedAt"`,
       [id, monto, userId],
     );
@@ -146,19 +147,20 @@ class PresupuestosService {
       throw new PresupuestoNotFoundError();
     }
 
-    const completa = await query<PresupuestoRow>(`${SELECT_BASE} WHERE p.id = $1`, [id]);
+    const completa = await query<PresupuestoRow>(`${SELECT_BASE} WHERE p.id = $1 AND p."deletedAt" IS NULL`, [id]);
     return aPresupuesto(completa[0]);
   }
 
   public async deletePresupuesto(id: string, userId: string): Promise<void> {
     const existe = await query<{ id: string }>(
-      'SELECT id FROM presupuestos WHERE id = $1 AND "usuarioId" = $2',
+      'SELECT id FROM presupuestos WHERE id = $1 AND "usuarioId" = $2 AND "deletedAt" IS NULL',
       [id, userId],
     );
     if (!existe[0]) {
       throw new PresupuestoNotFoundError();
     }
-    await query('DELETE FROM presupuestos WHERE id = $1 AND "usuarioId" = $2', [id, userId]);
+    // Borrado lógico: el presupuesto pasa a la papelera (restaurable).
+    await query('UPDATE presupuestos SET "deletedAt" = now() WHERE id = $1 AND "usuarioId" = $2', [id, userId]);
   }
 }
 

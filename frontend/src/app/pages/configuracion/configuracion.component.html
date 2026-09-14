@@ -21,6 +21,9 @@
         <button class="settings-nav-item" [class.active]="seccion() === 'moneda'" (click)="seccion.set('moneda')">
           <lucide-icon name="circle-dollar-sign" [size]="21"></lucide-icon> Moneda
         </button>
+        <button class="settings-nav-item" [class.active]="seccion() === 'papelera'" (click)="seccion.set('papelera')">
+          <lucide-icon name="trash-2" [size]="21"></lucide-icon> Papelera
+        </button>
       </aside>
 
       <div class="settings-panels-col">
@@ -186,6 +189,12 @@
           <div class="settings-actions">
             <button class="btn-primary" (click)="guardarMoneda()"><lucide-icon name="save" [size]="16"></lucide-icon> Guardar cambios</button>
           </div>
+        </section>
+
+        <section class="glass-card settings-panel" *ngIf="seccion() === 'papelera'">
+          <h3 class="settings-title">Papelera</h3>
+          <p class="settings-sub">Recupera o elimina definitivamente los elementos borrados.</p>
+          <app-papelera></app-papelera>
         </section>
 
       </div>

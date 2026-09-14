@@ -156,7 +156,7 @@ class PresupuestosController {
 
     try {
       await presupuestosService.deletePresupuesto(id, userId);
-      res.status(204).send();
+      res.status(200).json({ message: 'Presupuesto movido a la papelera.' });
     } catch (error: any) {
       if (error instanceof PresupuestoNotFoundError) {
         res.status(404).json({ message: error.message });

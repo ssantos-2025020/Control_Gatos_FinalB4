@@ -57,21 +57,10 @@ export class CategoriaNotFoundError extends Error {
   }
 }
 
-/**
- * Error de dominio para la categoría de respaldo "Otros",
- * que no puede eliminarse porque recibe todos los gastos sin categoría.
- */
-export class CategoriaProtegidaError extends Error {
-  constructor() {
-    super("No se puede eliminar la categoría 'Otros' porque es la categoría de respaldo de los gastos. Puedes ocultarla con el estado 'Inactiva'.");
-    this.name = 'CategoriaProtegidaError';
-  }
-}
-
 class CategoriasService {
   public async getCategorias(userId: string): Promise<Categoria[]> {
     const filas = await query<CategoriaRow>(
-      `${SELECT_BASE} WHERE "usuarioId" = $1 ORDER BY nombre ASC`,
+      `${SELECT_BASE} WHERE "usuarioId" = $1 AND "deletedAt" IS NULL ORDER BY nombre ASC`,
       [userId],
     );
     return filas.map(aCategoria);
@@ -79,7 +68,7 @@ class CategoriasService {
 
   public async getCategoriaById(id: string, userId: string): Promise<Categoria | null> {
     const filas = await query<CategoriaRow>(
-      `${SELECT_BASE} WHERE id = $1 AND "usuarioId" = $2`,
+      `${SELECT_BASE} WHERE id = $1 AND "usuarioId" = $2 AND "deletedAt" IS NULL`,
       [id, userId],
     );
     return filas[0] ? aCategoria(filas[0]) : null;
@@ -90,14 +79,14 @@ class CategoriasService {
     const filas = await query<CategoriaRow>(
       `INSERT INTO categorias (id, "usuarioId", nombre, tipo, "createdAt", "updatedAt")
        VALUES (gen_random_uuid()::text, $1, $2, $3, now(), now())
-       ON CONFLICT ("usuarioId", nombre) DO NOTHING
+       ON CONFLICT ("usuarioId", nombre) WHERE "deletedAt" IS NULL DO NOTHING
        RETURNING id, "usuarioId", nombre, tipo, "createdAt", "updatedAt"`,
       [userId, data.nombre, tipo],
     );
 
     if (!filas[0]) {
       const existente = await query<CategoriaRow>(
-        `${SELECT_BASE} WHERE "usuarioId" = $1 AND nombre = $2`,
+        `${SELECT_BASE} WHERE "usuarioId" = $1 AND nombre = $2 AND "deletedAt" IS NULL`,
         [userId, data.nombre],
       );
       if (existente[0]) {
@@ -124,7 +113,7 @@ class CategoriasService {
 
     const filas = await query<CategoriaRow>(
       `UPDATE categorias SET ${sets.join(', ')}
-       WHERE id = $1 AND "usuarioId" = $2
+       WHERE id = $1 AND "usuarioId" = $2 AND "deletedAt" IS NULL
        RETURNING id, "usuarioId", nombre, tipo, "createdAt", "updatedAt"`,
       params,
     );
@@ -136,14 +125,18 @@ class CategoriasService {
     return aCategoria(filas[0]);
   }
 
+  /**
+   * Borra una categoría MOVIENDO a la papelera (borrado lógico) también sus
+   * gastos y presupuestos. Todo queda restaurable desde la papelera.
+   */
   public async deleteCategoria(id: string, userId: string): Promise<{
     mensaje: string;
-    categoriaReasignada: string;
-    gastosReasignados: number;
+    gastosEnPapelera: number;
+    presupuestosEnPapelera: number;
   }> {
     return withTransaction(async ({ query: q }) => {
-      const existe = await q<{ id: string; nombre: string }>(
-        'SELECT id, nombre FROM categorias WHERE id = $1 AND "usuarioId" = $2',
+      const existe = await q<{ id: string }>(
+        'SELECT id FROM categorias WHERE id = $1 AND "usuarioId" = $2 AND "deletedAt" IS NULL',
         [id, userId],
       );
 
@@ -151,40 +144,26 @@ class CategoriasService {
         throw new CategoriaNotFoundError();
       }
 
-      if (existe[0].nombre === 'Otros') {
-        throw new CategoriaProtegidaError();
-      }
-
-      let otros = await q<{ id: string }>(
-        `SELECT id FROM categorias WHERE nombre = 'Otros' AND "usuarioId" = $1`,
-        [userId],
-      );
-      let otrosId = otros[0]?.id;
-
-      if (!otrosId) {
-        otrosId = (
-          await q<{ id: string }>(
-            `INSERT INTO categorias (id, "usuarioId", nombre, tipo, "createdAt", "updatedAt")
-             VALUES (gen_random_uuid()::text, $1, 'Otros', 'AMBAS', now(), now())
-             RETURNING id`,
-            [userId],
-          )
-        )[0].id;
-      }
-
-      const reasignados = await q<{ id: string }>(
-        'UPDATE gastos SET "categoriaId" = $1 WHERE "categoriaId" = $2 AND "usuarioId" = $3 RETURNING id',
-        [otrosId, id, userId],
+      const gastos = await q<{ id: string }>(
+        `UPDATE gastos SET "deletedAt" = now()
+         WHERE "categoriaId" = $1 AND "usuarioId" = $2 AND "deletedAt" IS NULL
+         RETURNING id`,
+        [id, userId],
       );
 
-      await q('DELETE FROM presupuestos WHERE "categoriaId" = $1 AND "usuarioId" = $2', [id, userId]);
+      const presupuestos = await q<{ id: string }>(
+        `UPDATE presupuestos SET "deletedAt" = now()
+         WHERE "categoriaId" = $1 AND "usuarioId" = $2 AND "deletedAt" IS NULL
+         RETURNING id`,
+        [id, userId],
+      );
 
-      await q('DELETE FROM categorias WHERE id = $1', [id]);
+      await q('UPDATE categorias SET "deletedAt" = now(), "updatedAt" = now() WHERE id = $1', [id]);
 
       return {
-        mensaje: 'Categoría eliminada',
-        categoriaReasignada: otrosId,
-        gastosReasignados: reasignados.length,
+        mensaje: 'Categoría movida a la papelera con sus gastos y presupuestos.',
+        gastosEnPapelera: gastos.length,
+        presupuestosEnPapelera: presupuestos.length,
       };
     });
   }

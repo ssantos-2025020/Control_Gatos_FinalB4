@@ -17,7 +17,7 @@ import {
   Camera, GripHorizontal, Lock,
   Baby, Book, Briefcase, Bus, Coffee, Dumbbell, Film, Fuel, Gamepad2,
   Hammer, HandCoins, Laptop, MapPin, Music, Percent, Phone, School,
-  Smartphone, Sofa, Sparkles, Star, Stethoscope, Ticket, Accessibility, KeyRound
+  Smartphone, Sofa, Sparkles, Star, Stethoscope, Ticket, Accessibility, KeyRound, RotateCcw
 } from 'lucide';
 
 const ICON_MAP: Record<string, any[]> = {
@@ -72,6 +72,7 @@ const ICON_MAP: Record<string, any[]> = {
   'download': Download,
   'filter': Filter,
   'history': History,
+  'rotate-ccw': RotateCcw,
   'file-text': FileText,
   'chart-line': ChartLine,
   'arrow-up-right': ArrowUpRight,

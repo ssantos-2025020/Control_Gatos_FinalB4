@@ -83,8 +83,8 @@ export class CategoriasService {
     return this.http.put<Categoria>(`${this.apiUrl}/${id}`, { nombre, tipo });
   }
 
-  deleteCategoria(id: string): Observable<{ message: string }> {
-    return this.http.delete<{ message: string }>(`${this.apiUrl}/${id}`);
+  deleteCategoria(id: string): Observable<{ mensaje: string; gastosEnPapelera: number; presupuestosEnPapelera: number }> {
+    return this.http.delete<{ mensaje: string; gastosEnPapelera: number; presupuestosEnPapelera: number }>(`${this.apiUrl}/${id}`);
   }
 
   /* ─── Fuente única de color por categoría ─── */

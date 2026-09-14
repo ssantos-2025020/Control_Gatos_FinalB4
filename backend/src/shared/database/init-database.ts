@@ -58,7 +58,7 @@ async function crearTablas(): Promise<void> {
       color     text,
       "createdAt" timestamptz NOT NULL DEFAULT now(),
       "updatedAt" timestamptz NOT NULL DEFAULT now(),
-      UNIQUE ("usuarioId", nombre),
+      "deletedAt" timestamptz,
       CONSTRAINT fk_categorias_usuario FOREIGN KEY ("usuarioId") REFERENCES usuarios(id) ON DELETE CASCADE
     )
   `);
@@ -73,6 +73,7 @@ async function crearTablas(): Promise<void> {
       "categoriaId" text NOT NULL,
       "createdAt" timestamptz NOT NULL DEFAULT now(),
       "updatedAt" timestamptz NOT NULL DEFAULT now(),
+      "deletedAt" timestamptz,
       metodo      text,
       CONSTRAINT fk_gastos_usuario FOREIGN KEY ("usuarioId") REFERENCES usuarios(id) ON DELETE CASCADE,
       CONSTRAINT fk_gastos_categoria FOREIGN KEY ("categoriaId") REFERENCES categorias(id)
@@ -88,6 +89,7 @@ async function crearTablas(): Promise<void> {
       "usuarioId" text NOT NULL,
       "createdAt" timestamptz NOT NULL DEFAULT now(),
       "updatedAt" timestamptz NOT NULL DEFAULT now(),
+      "deletedAt" timestamptz,
       categoria   text,
       metodo      text,
       CONSTRAINT fk_ingresos_usuario FOREIGN KEY ("usuarioId") REFERENCES usuarios(id) ON DELETE CASCADE
@@ -104,6 +106,7 @@ async function crearTablas(): Promise<void> {
       monto       numeric(10,2) NOT NULL,
       "createdAt" timestamptz NOT NULL DEFAULT now(),
       "updatedAt" timestamptz NOT NULL DEFAULT now(),
+      "deletedAt" timestamptz,
       CONSTRAINT fk_presupuestos_usuario FOREIGN KEY ("usuarioId") REFERENCES usuarios(id) ON DELETE CASCADE,
       CONSTRAINT fk_presupuestos_categoria FOREIGN KEY ("categoriaId") REFERENCES categorias(id)
     )
@@ -113,6 +116,19 @@ async function crearTablas(): Promise<void> {
   // existentes a un único propietario (el administrador) y agregan el campo tipo.
   await asegurarColumnaCategorias();
   await asegurarColumnaPresupuestos();
+
+  // Papelera: borrado lógico con "deletedAt" (null = vigente).
+  await query(`ALTER TABLE categorias ADD COLUMN IF NOT EXISTS "deletedAt" timestamptz`);
+  await query(`ALTER TABLE gastos ADD COLUMN IF NOT EXISTS "deletedAt" timestamptz`);
+  await query(`ALTER TABLE ingresos ADD COLUMN IF NOT EXISTS "deletedAt" timestamptz`);
+  await query(`ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS "deletedAt" timestamptz`);
+
+  // La unicidad de categorías/presupuestos aplica solo a los registros vigentes
+  // (los movidos a la papelera no bloquean volver a crear el mismo nombre).
+  await query(`DROP INDEX IF EXISTS uq_categorias_activas`);
+  await query(`CREATE UNIQUE INDEX uq_categorias_activas ON categorias ("usuarioId", nombre) WHERE "deletedAt" IS NULL`);
+  await query(`DROP INDEX IF EXISTS uq_presupuestos_activo`);
+  await query(`CREATE UNIQUE INDEX uq_presupuestos_activo ON presupuestos ("usuarioId", "categoriaId", mes, anio) WHERE "deletedAt" IS NULL`);
 
   // El módulo de ingresos guarda categoría y método como texto libre
   // (las opciones provienen del catálogo unificado de categorías).
@@ -136,10 +152,10 @@ async function crearTablas(): Promise<void> {
 
 /**
  * Red de seguridad a nivel de base de datos contra referencias rotas:
- * al eliminar una categoría, sus gastos se reasignan a la categoría de
- * respaldo "Otros" del mismo usuario (creándola si no existe) y sus
- * presupuestos se eliminan. Ninguna fila puede quedar apuntando a un
- * "categoriaId" inexistente (el origen del "NaN" en Presupuestos).
+ * al ELIMINAR DEFINITIVAMENTE una categoría (desde la papelera), los gastos
+ * que aún le apunten se reasignan a la categoría de respaldo "Otros" del mismo
+ * usuario (creándola si no existe) y sus presupuestos se eliminan. Ninguna fila
+ * puede quedar apuntando a un "categoriaId" inexistente.
  */
 async function crearTriggerAntiHuerfanos(): Promise<void> {
   await query(`
@@ -148,22 +164,21 @@ async function crearTriggerAntiHuerfanos(): Promise<void> {
     DECLARE
       otros_id text;
     BEGIN
-      IF OLD.nombre = 'Otros' THEN
-        RETURN OLD;
+      IF EXISTS (SELECT 1 FROM gastos WHERE "categoriaId" = OLD.id) THEN
+        SELECT id INTO otros_id
+        FROM categorias
+        WHERE "usuarioId" = OLD."usuarioId" AND nombre = 'Otros' AND id <> OLD.id
+        LIMIT 1;
+
+        IF otros_id IS NULL THEN
+          INSERT INTO categorias (id, "usuarioId", nombre, tipo, "createdAt", "updatedAt")
+          VALUES (gen_random_uuid()::text, OLD."usuarioId", 'Otros', 'AMBAS', now(), now())
+          RETURNING id INTO otros_id;
+        END IF;
+
+        UPDATE gastos SET "categoriaId" = otros_id WHERE "categoriaId" = OLD.id;
       END IF;
 
-      SELECT id INTO otros_id
-      FROM categorias
-      WHERE "usuarioId" = OLD."usuarioId" AND nombre = 'Otros' AND id <> OLD.id
-      LIMIT 1;
-
-      IF otros_id IS NULL THEN
-        INSERT INTO categorias (id, "usuarioId", nombre, tipo, "createdAt", "updatedAt")
-        VALUES (gen_random_uuid()::text, OLD."usuarioId", 'Otros', 'AMBAS', now(), now())
-        RETURNING id INTO otros_id;
-      END IF;
-
-      UPDATE gastos SET "categoriaId" = otros_id WHERE "categoriaId" = OLD.id;
       DELETE FROM presupuestos WHERE "categoriaId" = OLD.id;
 
       RETURN OLD;
@@ -200,7 +215,7 @@ async function crearTriggerCategoriasPorDefecto(): Promise<void> {
         ('Sueldo',     'INGRESO'),
         ('Otros',      'AMBAS')
       ) AS v(nombre, tipo)
-      ON CONFLICT ("usuarioId", nombre) DO NOTHING;
+      ON CONFLICT ("usuarioId", nombre) WHERE "deletedAt" IS NULL DO NOTHING;
       RETURN NEW;
     END;
     $$ LANGUAGE plpgsql;
@@ -231,8 +246,12 @@ async function asegurarColumnaCategorias(): Promise<void> {
   await query(`ALTER TABLE categorias DROP CONSTRAINT IF EXISTS categorias_tipo_check`);
   await query(`ALTER TABLE categorias ADD CONSTRAINT categorias_tipo_check CHECK (tipo IN ('INGRESO', 'GASTO', 'AMBAS'))`);
 
-  // El catálogo pasa a ser por usuario: se elimina la unicidad global por nombre.
+  // El catálogo pasa a ser por usuario: se elimina la unicidad global por nombre
+  // y la unicidad vigente queda en el índice parcial uq_categorias_activas
+  // (los registros en la papelera no bloquean volver a crear el mismo nombre).
   await query(`ALTER TABLE categorias DROP CONSTRAINT IF EXISTS categorias_nombre_key`);
+  await query(`ALTER TABLE categorias DROP CONSTRAINT IF EXISTS "categorias_usuarioId_nombre_key"`);
+  await query(`ALTER TABLE categorias DROP CONSTRAINT IF EXISTS categorias_usuarioid_nombre_key`);
 }
 
 async function asegurarColumnaPresupuestos(): Promise<void> {
@@ -261,7 +280,6 @@ async function asegurarColumnaPresupuestos(): Promise<void> {
   await query(`ALTER TABLE presupuestos DROP CONSTRAINT IF EXISTS "presupuestos_usuarioId_categoriaId_key"`);
   // El ADD previo creó la restricción con nombre en minúsculas (identificador sin comillas).
   await query(`ALTER TABLE presupuestos DROP CONSTRAINT IF EXISTS presupuestos_usuarioid_categoriamesanio_key`);
-  await query(`ALTER TABLE presupuestos ADD CONSTRAINT presupuestos_usuarioid_categoriamesanio_key UNIQUE ("usuarioId", "categoriaId", mes, anio)`);
 }
 
 async function seedCategorias(): Promise<void> {
@@ -272,7 +290,7 @@ async function seedCategorias(): Promise<void> {
     await query(
       `INSERT INTO categorias (id, "usuarioId", nombre, tipo, "createdAt", "updatedAt")
        VALUES (gen_random_uuid()::text, $1, $2, $3, now(), now())
-       ON CONFLICT ("usuarioId", nombre) DO NOTHING`,
+       ON CONFLICT ("usuarioId", nombre) WHERE "deletedAt" IS NULL DO NOTHING`,
       [admin[0].id, c.nombre, c.tipo],
     );
   }

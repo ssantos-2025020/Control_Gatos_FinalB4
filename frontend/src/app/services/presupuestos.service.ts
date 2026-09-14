@@ -37,7 +37,7 @@ export class PresupuestosService {
     return this.http.put<Presupuesto>(`${this.apiUrl}/${id}`, { monto });
   }
 
-  deletePresupuesto(id: string): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}/${id}`);
+  deletePresupuesto(id: string): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.apiUrl}/${id}`);
   }
 }
