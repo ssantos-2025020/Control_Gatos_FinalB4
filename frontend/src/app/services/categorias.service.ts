@@ -3,9 +3,12 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { environment } from '../../environments/environment';
 
+export type TipoCategoria = 'INGRESO' | 'GASTO' | 'AMBAS';
+
 export interface Categoria {
   id: string;
   nombre: string;
+  tipo?: TipoCategoria;
   createdAt?: string;
   updatedAt?: string;
   color?: string;
@@ -19,10 +22,13 @@ export interface Categoria {
    resuelven el color a través de CategoriasService.colorDeCategoria() desde esta
    MISMA fuente; nunca se define un color por categoría dentro de un componente. */
 export const CATEGORIA_COLORES_BASE: { [key: string]: string } = {
+  Comida: '#ef4444',
   Alimentacion: '#1268ff',
   Transporte: '#00b9e8',
   Vivienda: '#7228e8',
+  Servicios: '#00d0a8',
   'Servicios Publicos': '#ff6b9d',
+  Sueldo: '#22c55e',
   Comunicaciones: '#00e7a8',
   Salud: '#ffa500',
   Educacion: '#6ea8ff',
@@ -69,12 +75,12 @@ export class CategoriasService {
     );
   }
 
-  createCategoria(nombre: string): Observable<Categoria> {
-    return this.http.post<Categoria>(this.apiUrl, { nombre });
+  createCategoria(nombre: string, tipo: TipoCategoria = 'AMBAS'): Observable<Categoria> {
+    return this.http.post<Categoria>(this.apiUrl, { nombre, tipo });
   }
 
-  updateCategoria(id: string, nombre: string): Observable<Categoria> {
-    return this.http.put<Categoria>(`${this.apiUrl}/${id}`, { nombre });
+  updateCategoria(id: string, nombre: string, tipo?: TipoCategoria): Observable<Categoria> {
+    return this.http.put<Categoria>(`${this.apiUrl}/${id}`, { nombre, tipo });
   }
 
   deleteCategoria(id: string): Observable<{ message: string }> {
@@ -111,5 +117,20 @@ export class CategoriasService {
     const prefs = CategoriasService.leerPrefs();
     prefs[id] = { ...(prefs[id] ?? {}), color };
     localStorage.setItem(CATEGORIA_COLORES_PREFS_KEY, JSON.stringify(prefs));
+  }
+
+  /* ─── Clasificación por tipo ─── */
+  esCategoriaGasto(c: Categoria): boolean {
+    return c.tipo === 'GASTO' || c.tipo === 'AMBAS' || c.tipo === undefined;
+  }
+
+  esCategoriaIngreso(c: Categoria): boolean {
+    return c.tipo === 'INGRESO' || c.tipo === 'AMBAS' || c.tipo === undefined;
+  }
+
+  static labelTipo(tipo?: TipoCategoria): string {
+    if (tipo === 'INGRESO') return 'Ingreso';
+    if (tipo === 'GASTO') return 'Gasto';
+    return 'Ambas';
   }
 }

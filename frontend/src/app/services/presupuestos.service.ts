@@ -25,7 +25,15 @@ export class PresupuestosService {
     return this.http.get<Presupuesto[]>(this.apiUrl);
   }
 
+  createPresupuesto(categoriaId: string, monto: number): Observable<Presupuesto> {
+    return this.http.post<Presupuesto>(this.apiUrl, { categoriaId, monto });
+  }
+
   updateMonto(id: string, monto: number): Observable<Presupuesto> {
     return this.http.put<Presupuesto>(`${this.apiUrl}/${id}`, { monto });
+  }
+
+  deletePresupuesto(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${id}`);
   }
 }

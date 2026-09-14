@@ -5,18 +5,10 @@ import { AuthService } from '../services/auth.service';
 /**
  * Guard funcional: protege las rutas internas redirigiendo al login
  * si no existe una sesión válida (token presente).
- * 
- * Modo demo: si existe la variable 'cg_demo_mode' en localStorage con valor 'true',
- * bypass la autenticación para permitir testing sin login interactivo.
  */
 export const authGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);
-
-  // Modo demo para testing headless
-  if (localStorage.getItem('cg_demo_mode') === 'true') {
-    return true;
-  }
 
   if (authService.isAuthenticated()) {
     return true;
@@ -27,10 +19,10 @@ export const authGuard: CanActivateFn = () => {
 };
 
 /**
- * Guard funcional: permite el acceso únicamente a usuarios con rol ADMIN.
- * Debe usarse después de authGuard.
+ * Guard funcional: permite acceso solo a ADMIN para páginas restringidas
+ * Redirige a dashboard si es USER regular
  */
-export const adminGuard: CanActivateFn = () => {
+export const adminOnlyGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
