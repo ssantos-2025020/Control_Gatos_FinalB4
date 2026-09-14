@@ -1,0 +1,200 @@
+<div class="app-shell">
+  <app-sidebar></app-sidebar>
+
+  <!-- Área principal -->
+  <div class="main-area">
+    <header class="topbar">
+      <div class="topbar-left">
+        <h2 class="page-title">Usuarios</h2>
+        <p class="page-subtitle">Gestiona los accesos y roles del sistema.</p>
+      </div>
+      <div class="topbar-right">
+        <button (click)="abrirNuevoModal()" class="btn-primary">
+          <lucide-icon [name]="'plus'" [size]="16"></lucide-icon> Nuevo Usuario
+        </button>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <section class="stats-grid reference-stats">
+        <div class="stat-card card-blue"><div class="stat-icon-wrap blue"><lucide-icon name="users" [size]="22"></lucide-icon></div><div class="stat-content"><span class="stat-label">TOTAL USUARIOS</span><span class="stat-value">{{ totalUsuarios() }}</span><span class="stat-change neutral">Usuarios registrados</span></div></div>
+        <div class="stat-card card-green"><div class="stat-icon-wrap green"><lucide-icon name="user-round-check" [size]="22"></lucide-icon></div><div class="stat-content"><span class="stat-label">USUARIOS ACTIVOS</span><span class="stat-value">{{ usuariosActivos() }}</span><span class="stat-change neutral">Del total registrado</span></div></div>
+        <div class="stat-card card-blue"><div class="stat-icon-wrap blue"><lucide-icon name="shield-check" [size]="22"></lucide-icon></div><div class="stat-content"><span class="stat-label">ADMINISTRADORES</span><span class="stat-value">{{ administradores() }}</span><span class="stat-change neutral">Con permisos de gestión</span></div></div>
+        <div class="stat-card card-orange"><div class="stat-icon-wrap orange"><lucide-icon name="user-plus" [size]="22"></lucide-icon></div><div class="stat-content"><span class="stat-label">NUEVOS ESTE MES</span><span class="stat-value">—</span><span class="stat-change up">Usuarios recientes</span></div></div>
+      </section>
+
+      <section class="glass-card users-section">
+        <div class="filters-wrap" *ngIf="usuarios().length > 0">
+          <div class="search-field">
+            <span class="search-icon"><lucide-icon [name]="'search'" [size]="15"></lucide-icon></span>
+            <input
+              type="text"
+              placeholder="Buscar por nombre o correo..."
+              class="input-filter"
+              (input)="filtroBusqueda.set($any($event.target).value)"
+            />
+          </div>
+        </div>
+
+        <div *ngIf="cargando() && usuarios().length === 0" class="loading-state">
+          <img src="assets/Logo sinfondo.png" alt="Legatus" class="loading-logo" />
+          <div class="spinner"></div>
+          <p>Cargando usuarios...</p>
+        </div>
+
+        <div *ngIf="!cargando() && errorMsg()" class="alert-error">
+          <lucide-icon [name]="'triangle-alert'" [size]="16"></lucide-icon> {{ errorMsg() }}
+        </div>
+
+        <div *ngIf="!cargando() && usuarios().length === 0 && !errorMsg()" class="empty-state">
+          <span class="empty-icon"><lucide-icon [name]="'users'" [size]="30"></lucide-icon></span>
+          <h3>No hay usuarios registrados</h3>
+          <p>Pulsa "Nuevo Usuario" para comenzar.</p>
+        </div>
+
+        <div *ngIf="usuariosFiltrados().length === 0 && usuarios().length > 0" class="empty-state">
+          <span class="empty-icon"><lucide-icon [name]="'search'" [size]="30"></lucide-icon></span>
+          <h3>Sin resultados</h3>
+          <p>No se encontraron usuarios con ese criterio.</p>
+        </div>
+
+        <div *ngIf="usuariosFiltrados().length > 0" class="table-responsive">
+          <table class="users-table">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Email</th>
+                <th>Rol</th>
+                <th class="text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let usuario of usuariosFiltrados()">
+                <td>
+                  <div class="user-name-cell">
+                    <span class="avatar-circle">{{ inicialInicial(usuario.nombre) }}</span>
+                    <div>
+                      <div class="user-name-main">{{ usuario.nombre }}</div>
+                      <span *ngIf="esMiUsuario(usuario)" class="badge-you">Tú</span>
+                    </div>
+                  </div>
+                </td>
+                <td class="text-muted">{{ usuario.email }}</td>
+                <td>
+                  <span class="role-badge" [class.role-admin]="usuario.role === 'ADMIN'">
+                    {{ usuario.role }}
+                  </span>
+                </td>
+                <td class="actions-col text-center">
+                  <button
+                    (click)="abrirEditarModal(usuario)"
+                    class="btn-action btn-edit"
+                    title="Editar usuario"
+                  >
+                    <lucide-icon [name]="'pencil'" [size]="14"></lucide-icon>
+                  </button>
+                  <button
+                    *ngIf="!esMiUsuario(usuario)"
+                    (click)="eliminarUsuario(usuario)"
+                    class="btn-action btn-delete"
+                    title="Eliminar usuario"
+                    [disabled]="esUltimoAdmin(usuario)"
+                  >
+                    <lucide-icon [name]="'trash-2'" [size]="14"></lucide-icon>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal de Usuario (Crear/Editar) -->
+  <div class="modal-backdrop" *ngIf="mostrarModal()" (keydown.escape)="cerrarModal()">
+    <div class="modal-container glass-card" (keydown)="onModalKeydown($event)">
+      <div class="modal-header">
+        <h2>{{ esCreacion ? 'Registrar Nuevo Usuario' : 'Editar Usuario' }}</h2>
+        <button (click)="cerrarModal()" class="btn-close-modal">&times;</button>
+      </div>
+
+      <div *ngIf="formErrorMsg()" class="alert-error">
+        <lucide-icon [name]="'triangle-alert'" [size]="16"></lucide-icon> {{ formErrorMsg() }}
+      </div>
+
+      <form [formGroup]="usuarioForm" (ngSubmit)="guardarUsuario()" class="modal-form">
+        <div class="form-field">
+          <label for="nombre">Nombre</label>
+          <input
+            id="nombre"
+            type="text"
+            formControlName="nombre"
+            placeholder="Ej. María García"
+            class="form-input"
+          />
+          <div *ngIf="nombreInvalido" class="form-error">
+            El nombre es obligatorio (máx. 80 caracteres).
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label for="email">Correo electrónico</label>
+          <input
+            id="email"
+            type="email"
+            formControlName="email"
+            placeholder="usuario@correo.com"
+            class="form-input"
+          />
+          <div *ngIf="emailInvalido" class="form-error">
+            Ingresa un correo electrónico válido.
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-field">
+            <label for="role">Rol</label>
+            <select id="role" formControlName="role" class="form-input">
+              <option value="USER">Usuario</option>
+              <option value="ADMIN">Administrador</option>
+            </select>
+          </div>
+
+          <div class="form-field">
+            <label for="password">
+              {{ esCreacion ? 'Contraseña' : 'Nueva contraseña (opcional)' }}
+            </label>
+            <input
+              id="password"
+              type="password"
+              formControlName="password"
+              placeholder="{{ esCreacion ? '••••••••' : 'Dejar vacío para no cambiar' }}"
+              class="form-input"
+            />
+            <div
+              *ngIf="usuarioForm.get('password')?.touched && usuarioForm.get('password')?.invalid"
+              class="form-error"
+            >
+              La contraseña debe tener al menos 4 caracteres.
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" (click)="cerrarModal()" class="btn-secondary">Cancelar</button>
+          <button type="submit" class="btn-primary" [disabled]="usuarioForm.invalid || guardando()">
+            {{ guardando() ? 'Guardando...' : (esCreacion ? 'Crear Usuario' : 'Actualizar') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast de éxito -->
+  <div class="gastos-toast" *ngIf="toast()">
+    <lucide-icon [name]="'check-circle'" [size]="18"></lucide-icon>
+    <span>{{ toast() }}</span>
+    <button type="button" class="gastos-toast-close" (click)="toast.set(null)" title="Cerrar">&times;</button>
+  </div>
+</div>

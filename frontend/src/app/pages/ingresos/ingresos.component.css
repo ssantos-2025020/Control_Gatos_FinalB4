@@ -1,21 +1,6 @@
 /* CSS específico de Ingresos. El resto del sistema visual vive en theme.css,
    dashboard.component.css y shared-styles.css (globales). */
 
-/* ─── Breadcrumb ─── */
-.breadcrumbs .breadcrumb-link {
-  cursor: pointer;
-  text-decoration: none;
-  transition: color 0.15s;
-}
-
-.breadcrumbs .breadcrumb-link:hover {
-  color: var(--text-primary);
-}
-
-.breadcrumbs .breadcrumb-current {
-  color: var(--text-white);
-}
-
 /* ─── Tarjetas de resumen ─── */
 .stat-icon-wrap.purple {
   background: rgba(168, 85, 247, 0.15);
@@ -35,6 +20,26 @@
   position: relative;
   display: flex;
   align-items: center;
+}
+
+/* ─── Búsqueda: lupa alineada dentro del input ─── */
+.search-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  font-size: 13px;
+  color: var(--text-muted);
+  pointer-events: none;
+  left: 12px;
+  z-index: 1;
+}
+
+.search-field .input-filter {
+  padding-left: 34px;
 }
 
 .date-field .date-icon {
@@ -145,36 +150,7 @@
   font-weight: 700;
 }
 
-/* ─── Acciones: editar (naranja) / eliminar (rojo) translúcidos ─── */
-.btn-edit-ic {
-  background: rgba(251, 146, 60, 0.15);
-  color: #fb923c;
-  border-radius: 50%;
-  padding: 7px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.15s;
-}
-
-.btn-edit-ic:hover {
-  background: rgba(251, 146, 60, 0.3);
-}
-
-.btn-del-ic {
-  background: rgba(244, 63, 94, 0.15);
-  color: #f43f5e;
-  border-radius: 50%;
-  padding: 7px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.15s;
-}
-
-.btn-del-ic:hover {
-  background: rgba(244, 63, 94, 0.3);
-}
+/* ─── Acciones: planas como en Categorías (heredan color) ─── */
 
 /* ─── Footer: card de total a la izquierda ─── */
 .ingresos-total {
@@ -275,3 +251,62 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* ─── Spinner (en botón de guardar) ─── */
+.spinner-sm {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spinner-sm-rot 0.7s linear infinite;
+  vertical-align: -2px;
+  margin-right: 6px;
+}
+
+@keyframes spinner-sm-rot {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Toast de éxito ─── */
+.gastos-toast {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #072520;
+  border: 1px solid rgba(0, 224, 168, 0.35);
+  color: #e6faf4;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  animation: gastos-toast-in 0.25s ease-out;
+}
+
+.gastos-toast lucide-icon {
+  color: #00e7a8;
+}
+
+@keyframes gastos-toast-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.gastos-toast-close {
+  background: transparent;
+  border: none;
+  color: #7fd9c0;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+  opacity: 0.7;
+}
+
+.gastos-toast-close:hover { opacity: 1; }

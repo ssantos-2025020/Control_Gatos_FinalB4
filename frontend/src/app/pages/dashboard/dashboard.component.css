@@ -296,32 +296,46 @@ lucide-icon.presupuesto-icon {
 
 .filter-chips {
   display: flex;
-  gap: 4px;
-  background: var(--glass-hover);
-  border: 1px solid var(--glass-border-strong);
-  border-radius: 8px;
+  gap: 3px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(122, 160, 255, 0.14);
+  border-radius: 999px;
   padding: 3px;
+  backdrop-filter: blur(6px);
 }
 
 .chip-btn {
-  padding: 4px 10px;
-  border: none;
+  padding: 5px 14px;
+  border: 1px solid transparent;
   background: transparent;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
-  border-radius: 6px;
+  letter-spacing: 0.2px;
+  border-radius: 999px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.18s ease;
   font-family: 'Inter', sans-serif;
+  white-space: nowrap;
 }
 
-.chip-btn:hover { color: var(--text-secondary); }
+.chip-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.chip-btn:active { transform: scale(0.96); }
+
+.chip-btn:focus-visible {
+  outline: 2px solid var(--blue-primary);
+  outline-offset: 2px;
+}
 
 .chip-btn.active {
-  background: var(--blue-chip-active-bg);
-  color: var(--blue-light);
-  box-shadow: 0 0 0 1px var(--blue-chip-active-shadow);
+  background: var(--gradient-brand);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(1, 159, 252, 0.45);
 }
 
 .panel-link {
@@ -802,6 +816,73 @@ lucide-icon.presupuesto-icon {
 .form-error { font-size: 11px; color: var(--text-error); }
 .modal-footer { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
 
+/* ===== Inputs de monto con símbolo de moneda del sistema ===== */
+.input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-symbol {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 13px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.form-input--symbol { padding-left: 30px; }
+.input-filter--symbol { padding-left: 30px; }
+
+/* ===== Inputs de fecha: calendario alineado y sin duplicados ===== */
+.date-field,
+.date-fields .date-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.date-field .date-icon,
+.date-fields .date-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  pointer-events: none;
+  z-index: 2;
+  font-size: 13px;
+}
+
+/* Con ícono personalizado: se oculta el indicador nativo y el input deja hueco a la izquierda */
+.date-field .input-date,
+.date-fields .input-date:first-of-type {
+  padding-left: 34px;
+}
+
+/* Indicador nativo del navegador: invisible donde hay ícono custom (sigue siendo clicable en la misma zona transparente) */
+.date-field input[type="date"]::-webkit-calendar-picker-indicator,
+.date-fields input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  cursor: pointer;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* En modales (sin ícono custom) el indicador nativo se mantiene pero sutil */
+input[type="date"].form-input::-webkit-calendar-picker-indicator {
+  opacity: 0.55;
+  cursor: pointer;
+}
+
 /* ===== SCROLLBAR ===== */
 *::-webkit-scrollbar { width: 8px; height: 8px; }
 *::-webkit-scrollbar-track { background: var(--glass-hover); border-radius: 4px; }
@@ -826,6 +907,7 @@ lucide-icon.presupuesto-icon {
 
 .input-filter:focus { border-color: var(--blue-primary); background: rgba(255,255,255,0.06); box-shadow: 0 0 0 3px var(--blue-focus-ring); }
 .input-filter::placeholder { color: var(--text-placeholder); }
+select.input-filter option { background-color: var(--bg-sidebar); color: var(--text-primary); }
 .input-date { max-width: 140px; }
 .date-fields { display: flex; align-items: center; gap: 8px; }
 .date-sep { font-size: 12px; color: var(--text-muted); }
@@ -1151,3 +1233,5 @@ lucide-icon.presupuesto-icon {
 
 .panel-select:hover { border-color: var(--blue-border-strong, #2563eb); }
 .panel-select option { background: #0f172a; color: var(--text-primary); }
+
+

@@ -7,11 +7,6 @@
     <!-- ===== 1. HEADER ===== -->
     <header class="topbar">
       <div class="topbar-left">
-        <nav class="breadcrumbs">
-          <span class="breadcrumb-link">Dashboard</span>
-          <span class="breadcrumb-sep">›</span>
-          <span class="breadcrumb-current">Dashboard</span>
-        </nav>
         <h2 class="page-title">Dashboard</h2>
         <p class="page-subtitle">Resumen del estado de tus finanzas</p>
       </div>
@@ -22,6 +17,7 @@
     </header>
 
     <main class="page-content">
+      <div *ngIf="errorMsg()" class="alert-error"><lucide-icon [name]="'triangle-alert'" [size]="16"></lucide-icon> {{ errorMsg() }}</div>
       <!-- Loading -->
       <div *ngIf="cargando() && gastosDelMes().length === 0" class="loading-state">
         <img src="assets/Logo sinfondo.png" alt="Legatus" class="loading-logo" />
@@ -96,19 +92,19 @@
             </div>
             <div class="chart-container">
               <canvas baseChart
-                *ngIf="filtroGranularidad() === 'mes' && barChartData().datasets[0].data.length > 0"
+                *ngIf="filtroGranularidad() === 'mes'"
                 [data]="barChartData()"
                 [options]="lineChartOptions()"
                 [type]="'bar'"
               ></canvas>
               <canvas baseChart
-                *ngIf="filtroGranularidad() !== 'mes' && lineChartData().datasets[0].data.length > 0"
+                *ngIf="filtroGranularidad() !== 'mes' && hasLineChartData()"
                 [data]="lineChartData()"
                 [options]="lineChartOptions()"
                 [type]="'line'"
               ></canvas>
               <div
-                *ngIf="(filtroGranularidad() === 'mes' ? barChartData().datasets[0].data.length : lineChartData().datasets[0].data.length) === 0"
+                *ngIf="!hasChartDataForGranularidad()"
                 class="no-stats"
               >Sin datos de gastos este mes</div>
             </div>
@@ -131,12 +127,12 @@
             <div class="donut-layout">
               <div class="donut-chart-wrap">
                 <canvas baseChart
-                  *ngIf="donutChartData().datasets[0].data.length > 0"
+                  *ngIf="hasDonutChartData()"
                   [data]="donutChartData()"
                   [options]="donutChartOptions()"
                   [type]="'doughnut'"
                 ></canvas>
-                <div class="donut-center-label" *ngIf="donutChartData().datasets[0].data.length > 0">
+                <div class="donut-center-label" *ngIf="hasDonutChartData()">
                   <span class="donut-center-total">{{ totalGastadoPeriodo() }}</span>
                   <span class="donut-center-sub">Total</span>
                 </div>
@@ -225,7 +221,6 @@
           <div id="movimientos-section" class="bottom-panel glass-card">
             <div class="panel-header">
               <h3 class="panel-title"><lucide-icon [name]="'clock'" [size]="16" class="panel-title-icon"></lucide-icon> Últimos movimientos</h3>
-              <a class="panel-link" [routerLink]="['/movimientos']">Ver todos →</a>
             </div>
             <div class="movimientos-body">
               <div *ngFor="let m of movimientosRecientes()" class="movimiento-item">

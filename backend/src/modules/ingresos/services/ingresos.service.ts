@@ -94,6 +94,9 @@ class IngresosService {
     const condiciones: string[] = [];
     const params: unknown[] = [];
 
+    // Los registros en la papelera no se listan.
+    condiciones.push(`i."deletedAt" IS NULL`);
+
     // Filtrado por usuario si es un rol USER regular
     if (userRole !== 'ADMIN') {
       params.push(userId);
@@ -128,7 +131,7 @@ class IngresosService {
     userId: string,
     userRole: 'ADMIN' | 'USER',
   ): Promise<Ingreso> {
-    const filas = await query<IngresoRow>(`${SELECT_BASE} WHERE i.id = $1`, [id]);
+    const filas = await query<IngresoRow>(`${SELECT_BASE} WHERE i.id = $1 AND i."deletedAt" IS NULL`, [id]);
     const ingreso = filas[0];
 
     if (!ingreso) {
@@ -201,12 +204,12 @@ class IngresosService {
     }
 
     if (data.categoria !== undefined) {
-      params.push(data.categoria.trim() || null);
+      params.push(data.categoria?.trim() || null);
       sets.push(`categoria = $${params.length}`);
     }
 
     if (data.metodo !== undefined) {
-      params.push(data.metodo.trim() || null);
+      params.push(data.metodo?.trim() || null);
       sets.push(`metodo = $${params.length}`);
     }
 
@@ -214,7 +217,7 @@ class IngresosService {
 
     await query(`UPDATE ingresos SET ${sets.join(', ')} WHERE id = $1`, params);
 
-    const filas = await query<IngresoRow>(`${SELECT_BASE} WHERE i.id = $1`, [id]);
+    const filas = await query<IngresoRow>(`${SELECT_BASE} WHERE i.id = $1 AND i."deletedAt" IS NULL`, [id]);
     return aIngreso(filas[0]);
   }
 
@@ -226,7 +229,8 @@ class IngresosService {
     // Verificar que exista el ingreso y que el usuario tenga permisos
     await this.getIngresoById(id, userId, userRole);
 
-    await query('DELETE FROM ingresos WHERE id = $1', [id]);
+    // Borrado lógico: el ingreso pasa a la papelera (restaurable).
+    await query('UPDATE ingresos SET "deletedAt" = now() WHERE id = $1', [id]);
   }
 }
 

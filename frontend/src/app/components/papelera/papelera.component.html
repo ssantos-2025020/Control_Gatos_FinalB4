@@ -1,0 +1,169 @@
+<div class="papelera-wrap">
+  <div class="papelera-head">
+    <p class="papelera-sub" *ngIf="!vacia()">
+      Los elementos eliminados quedan aquí.<strong> Restaurarlos </strong>los devuelve a su lugar; eliminarlos ahí sí es definitivo.
+    </p>
+    <p class="papelera-sub" *ngIf="vacia()">
+      La papelera está vacía. Los elementos que borres (gastos, ingresos, presupuestos y categorías con sus registros)
+      aparecerán aquí y podrás restaurarlos.
+    </p>
+  </div>
+
+  <div class="papelera-toolbar">
+    <div class="papelera-tabs">
+      <button
+        type="button"
+        class="papelera-tab"
+        [class.active]="ficha() === 'gastos'"
+        (click)="setFicha('gastos')"
+      >
+        Gastos<span class="papelera-tab-count">{{ totalGastos() }}</span>
+      </button>
+      <button
+        type="button"
+        class="papelera-tab"
+        [class.active]="ficha() === 'ingresos'"
+        (click)="setFicha('ingresos')"
+      >
+        Ingresos<span class="papelera-tab-count">{{ totalIngresos() }}</span>
+      </button>
+      <button
+        type="button"
+        class="papelera-tab"
+        [class.active]="ficha() === 'presupuestos'"
+        (click)="setFicha('presupuestos')"
+      >
+        Presupuestos<span class="papelera-tab-count">{{ totalPresupuestos() }}</span>
+      </button>
+      <button
+        type="button"
+        class="papelera-tab"
+        [class.active]="ficha() === 'categorias'"
+        (click)="setFicha('categorias')"
+      >
+        Categorías<span class="papelera-tab-count">{{ totalCategorias() }}</span>
+      </button>
+    </div>
+
+    <div class="papelera-acciones">
+      <button type="button" class="btn-ghost" (click)="cargar()" [disabled]="cargando()">
+        <lucide-icon name="refresh-cw" [size]="15"></lucide-icon> Refrescar
+      </button>
+      <button type="button" class="btn-ghost" (click)="restaurarTodo()" [disabled]="totalFicha() === 0 || cargando()">
+        <lucide-icon name="rotate-ccw" [size]="15"></lucide-icon> Restaurar todo
+      </button>
+      <button type="button" class="btn-danger" (click)="vaciar()" [disabled]="vacia() || cargando()">
+        <lucide-icon name="trash-2" [size]="15"></lucide-icon> Vaciar papelera
+      </button>
+    </div>
+  </div>
+
+  <p class="papelera-resumen" *ngIf="!vacia()">
+    <lucide-icon name="history" [size]="14"></lucide-icon>
+    {{ totalFicha() }} elemento(s) en esta ficha
+    <ng-container *ngIf="totalMontoFicha() > 0"> · Total {{ formatearMonto(totalMontoFicha()) }}</ng-container>
+  </p>
+
+  @if (cargando()) {
+    <p class="papelera-vacio">Cargando papelera…</p>
+  } @else if (vacia()) {
+    <div class="papelera-vacio">
+      <lucide-icon name="trash-2" [size]="30"></lucide-icon>
+      <p>No hay elementos en la papelera.</p>
+    </div>
+  } @else if (totalFicha() === 0) {
+    <p class="papelera-vacio">No hay elementos de este tipo en la papelera.</p>
+  } @else {
+    @switch (ficha()) {
+      @case ('gastos') {
+        <div class="papelera-lista">
+          <div class="papelera-item" *ngFor="let g of contenido()?.gastos ?? []">
+            <div class="papelera-item-info">
+              <span class="papelera-item-title">
+                <lucide-icon name="receipt" [size]="15"></lucide-icon> {{ g.descripcion }}
+              </span>
+              <span class="papelera-item-sub">{{ g.categoria }} · {{ formatearFecha(g.fechaEliminacion) }}</span>
+            </div>
+            <span class="papelera-item-monto negativo">{{ formatearMonto(g.monto) }}</span>
+            <div class="papelera-item-acciones">
+              <button type="button" class="btn-ghost" (click)="restaurar('gastos', g.id)" [disabled]="cargando()">
+                <lucide-icon name="rotate-ccw" [size]="14"></lucide-icon> Restaurar
+              </button>
+              <button type="button" class="btn-danger-icon" title="Eliminar definitivamente" (click)="eliminarPermanente('gastos', g.id)" [disabled]="cargando()">
+                <lucide-icon name="trash-2" [size]="14"></lucide-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+      @case ('ingresos') {
+        <div class="papelera-lista">
+          <div class="papelera-item" *ngFor="let i of contenido()?.ingresos ?? []">
+            <div class="papelera-item-info">
+              <span class="papelera-item-title">
+                <lucide-icon name="banknote" [size]="15"></lucide-icon> {{ i.descripcion }}
+              </span>
+              <span class="papelera-item-sub">{{ i.categoria || 'Sin categoría' }} · {{ formatearFecha(i.fechaEliminacion) }}</span>
+            </div>
+            <span class="papelera-item-monto positivo">{{ formatearMonto(i.monto) }}</span>
+            <div class="papelera-item-acciones">
+              <button type="button" class="btn-ghost" (click)="restaurar('ingresos', i.id)" [disabled]="cargando()">
+                <lucide-icon name="rotate-ccw" [size]="14"></lucide-icon> Restaurar
+              </button>
+              <button type="button" class="btn-danger-icon" title="Eliminar definitivamente" (click)="eliminarPermanente('ingresos', i.id)" [disabled]="cargando()">
+                <lucide-icon name="trash-2" [size]="14"></lucide-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+      @case ('presupuestos') {
+        <div class="papelera-lista">
+          <div class="papelera-item" *ngFor="let p of contenido()?.presupuestos ?? []">
+            <div class="papelera-item-info">
+              <span class="papelera-item-title">
+                <lucide-icon name="piggy-bank" [size]="15"></lucide-icon> {{ p.categoria }}
+              </span>
+              <span class="papelera-item-sub">{{ nombreMes(p.mes) }} {{ p.anio }} · {{ formatearFecha(p.fechaEliminacion) }}</span>
+            </div>
+            <span class="papelera-item-monto">{{ formatearMonto(p.monto) }}</span>
+            <div class="papelera-item-acciones">
+              <button type="button" class="btn-ghost" (click)="restaurar('presupuestos', p.id)" [disabled]="cargando()">
+                <lucide-icon name="rotate-ccw" [size]="14"></lucide-icon> Restaurar
+              </button>
+              <button type="button" class="btn-danger-icon" title="Eliminar definitivamente" (click)="eliminarPermanente('presupuestos', p.id)" [disabled]="cargando()">
+                <lucide-icon name="trash-2" [size]="14"></lucide-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+      @case ('categorias') {
+        <div class="papelera-lista">
+          <div class="papelera-item" *ngFor="let c of contenido()?.categorias ?? []">
+            <div class="papelera-item-info">
+              <span class="papelera-item-title">
+                <lucide-icon name="tag" [size]="15"></lucide-icon> {{ c.nombre }}
+              </span>
+              <span class="papelera-item-sub">{{ c.tipo }} · {{ formatearFecha(c.fechaEliminacion) }} · sus gastos y presupuestos van con ella</span>
+            </div>
+            <div class="papelera-item-acciones">
+              <button type="button" class="btn-ghost" (click)="restaurar('categorias', c.id)" [disabled]="cargando()">
+                <lucide-icon name="rotate-ccw" [size]="14"></lucide-icon> Restaurar todo
+              </button>
+              <button type="button" class="btn-danger-icon" title="Eliminar definitivamente" (click)="eliminarPermanente('categorias', c.id)" [disabled]="cargando()">
+                <lucide-icon name="trash-2" [size]="14"></lucide-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+    }
+  }
+
+  <div class="papelera-toast" *ngIf="toast()">
+    <lucide-icon name="check-circle" [size]="16"></lucide-icon>
+    <span>{{ toast() }}</span>
+    <button class="papelera-toast-close" (click)="toast.set(null)" title="Cerrar">&times;</button>
+  </div>
+</div>

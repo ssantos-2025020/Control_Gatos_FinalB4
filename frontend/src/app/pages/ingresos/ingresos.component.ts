@@ -1,17 +1,18 @@
-import { Component, OnInit, signal, computed, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { LucideIconComponent } from '../../components/lucide-icon/lucide-icon.component';
+import { PapeleraAvisoComponent } from '../../components/papelera-aviso/papelera-aviso.component';
 import { IngresosService, Ingreso } from '../../services/ingresos.service';
+import { CategoriasService, Categoria } from '../../services/categorias.service';
 import { UsuariosService } from '../../services/usuarios.service';
 import { CurrencyService } from '../../services/currency.service';
 import { ConfigService } from '../../services/config.service';
 import { FiltroFechaService } from '../../services/filtro-fecha.service';
 import { crearFiltrosAnteriores } from '../../utils/filtros-record';
-import { CATEGORIAS_INGRESO } from '../../services/mock-data';
 import { Usuario } from '../../models/usuario.model';
 
 interface ComparacionTexto {
@@ -23,16 +24,20 @@ interface ComparacionTexto {
 @Component({
   selector: 'app-ingresos',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink, SidebarComponent, LucideIconComponent],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink, SidebarComponent, LucideIconComponent, PapeleraAvisoComponent],
   templateUrl: './ingresos.component.html',
   styleUrls: ['../dashboard/dashboard.component.css', './ingresos.component.css'],
 })
-export class IngresosComponent implements OnInit {
+export class IngresosComponent implements OnInit, OnDestroy {
   Math = Math;
-  catIngresos = CATEGORIAS_INGRESO;
+
+  guardando = signal(false);
+  toast = signal<string | null>(null);
+  private toastTimer: ReturnType<typeof setTimeout> | null = null;
 
   private authService = inject(AuthService);
   private ingresosService = inject(IngresosService);
+  private categoriasService = inject(CategoriasService);
   private usuariosService = inject(UsuariosService);
   private fb = inject(FormBuilder);
   currencyService = inject(CurrencyService);
@@ -43,6 +48,21 @@ export class IngresosComponent implements OnInit {
 
   cargando = signal(false);
   errorMsg = signal<string | null>(null);
+
+  // Catálogo unificado de categorías (pertenecientes al usuario autenticado).
+  categorias = signal<Categoria[]>([]);
+
+  // Las categorías aptas para ingresos son las de tipo INGRESO o AMBAS.
+  categoriasIngreso = computed(() => this.categorias().filter((c) => this.categoriasService.esCategoriaIngreso(c)));
+
+  // Categorías únicas basadas en ingresos existentes (filtro de tabla)
+  categoriasUnicas = computed(() => {
+    const cats = new Set<string>();
+    this.ingresos().forEach(i => {
+      if (i.categoria) cats.add(i.categoria);
+    });
+    return Array.from(cats).sort();
+  });
 
   ingresos = signal<Ingreso[]>([]);
   usuarios = signal<Usuario[]>([]);
@@ -72,16 +92,17 @@ export class IngresosComponent implements OnInit {
   // Modal confirmar eliminar
   mostrarConfirmacion = signal(false);
   ingresoAEliminar = signal<Ingreso | null>(null);
+  papeleraAviso = signal<string | null>(null);
 
   private colorPorNombre = (n?: string | null): string =>
-    this.catIngresos.find((c) => c.nombre === n)?.color ?? '';
+    this.categoriasService.colorDeCategoria(n ?? '');
 
   public colorCategoria(n?: string | null): string {
-    return this.colorPorNombre(n) || '#00e7a8';
+    return this.colorPorNombre(n);
   }
 
   public iconoCategoria(n?: string | null): string {
-    return this.catIngresos.find((c) => c.nombre === n)?.icono || 'banknote';
+    return 'banknote';
   }
 
   public colorMetodo(m?: string | null): string {
@@ -135,7 +156,7 @@ export class IngresosComponent implements OnInit {
     const ini = this.filtroFechaInicio();
     const fin = this.filtroFechaFin();
     const base = this.filtroBasico();
-    const fechaDia = (iso: string) => new Date(iso).toISOString().substring(0, 10);
+    const fechaDia = (iso: string) => this.filtroFecha.toYMDLocal(iso);
     return base.filter((i) => {
       const f = fechaDia(i.fecha);
       if (ini && f < ini) return false;
@@ -215,8 +236,8 @@ export class IngresosComponent implements OnInit {
 
   ngOnInit(): void {
     this.ingresoForm = this.fb.group({
-      descripcion: ['', [Validators.required, Validators.maxLength(100)]],
-      monto: ['', [Validators.required, Validators.min(0.01)]],
+      descripcion: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(100)]],
+      monto: ['', [Validators.required, Validators.min(0.01), this.maxDosDecimalesValidator()]],
       fecha: [this.filtroFecha.hoyIso(), [Validators.required]],
       categoria: [''],
       metodo: ['Transferencia'],
@@ -227,6 +248,63 @@ export class IngresosComponent implements OnInit {
     this.cargarDatos();
   }
 
+  ngOnDestroy(): void {
+    if (this.toastTimer !== null) {
+      clearTimeout(this.toastTimer);
+      this.toastTimer = null;
+    }
+  }
+
+  /** Validador: el monto no debe superar 2 decimales. */
+  private maxDosDecimalesValidator(): (control: { value: unknown }) => { [key: string]: boolean } | null {
+    return (control: { value: unknown }) => {
+      const v = control.value;
+      if (v === null || v === undefined || v === '') return null;
+      const s = String(v);
+      const m = s.match(/\.(\d+)$/);
+      if (m && m[1].length > 2) {
+        return { maxDecimales: true };
+      }
+      return null;
+    };
+  }
+
+  /** Formatea el monto con separador de miles y hasta 2 decimales (solo visual). */
+  formatMontoInput(valor: string): string {
+    let limpio = valor.replace(/[^\d.]/g, '');
+    const partes = limpio.split('.');
+    if (partes.length > 2) {
+      limpio = partes[0] + '.' + partes.slice(1).join('');
+    }
+    if (partes[1] !== undefined && partes[1].length > 2) {
+      limpio = partes[0] + '.' + partes[1].slice(0, 2);
+    }
+    const [entero, decimal] = limpio.split('.');
+    const conMiles = entero ? entero.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : entero;
+    return decimal !== undefined ? `${conMiles}.${decimal}` : conMiles;
+  }
+
+  onMontoInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const formateado = this.formatMontoInput(input.value);
+    this.ingresoForm.get('monto')?.setValue(formateado, { emitEvent: false });
+    input.value = formateado;
+  }
+
+  /** Muestra una notificación tipo toast. */
+  private mostrarToast(msg: string): void {
+    this.toast.set(msg);
+    if (this.toastTimer !== null) clearTimeout(this.toastTimer);
+    this.toastTimer = setTimeout(() => this.toast.set(null), 2800);
+  }
+
+  /** Cierra el modal con la tecla Escape y evita propagación. */
+  onModalKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      this.cerrarModal();
+    }
+  }
+
   public cargarDatos(): void {
     this.cargando.set(true);
     this.errorMsg.set(null);
@@ -234,6 +312,11 @@ export class IngresosComponent implements OnInit {
     this.usuariosService.getUsuariosCompletos().subscribe({
       next: (list) => this.usuarios.set(list),
       error: () => { /* el dropdown queda con solo "Todos" */ },
+    });
+
+    this.categoriasService.getCategoriasCompletas().subscribe({
+      next: (list) => this.categorias.set(list),
+      error: () => this.categorias.set([]),
     });
 
     this.ingresosService.getIngresosCompletos().subscribe({
@@ -308,6 +391,7 @@ export class IngresosComponent implements OnInit {
   // ===== Modal crear / editar =====
   public abrirNuevoModal(): void {
     this.ingresoEditando.set(null);
+    this.guardando.set(false);
     this.ingresoForm.reset({
       descripcion: '',
       monto: '',
@@ -321,10 +405,11 @@ export class IngresosComponent implements OnInit {
 
   public abrirEditarModal(ingreso: Ingreso): void {
     this.ingresoEditando.set(ingreso);
+    this.guardando.set(false);
     this.ingresoForm.setValue({
       descripcion: ingreso.descripcion,
-      monto: ingreso.monto,
-      fecha: new Date(ingreso.fecha).toISOString().substring(0, 10),
+      monto: this.formatMontoInput(String(ingreso.monto)),
+      fecha: this.filtroFecha.toYMDLocal(ingreso.fecha),
       categoria: ingreso.categoria ?? '',
       metodo: ingreso.metodo ?? 'Transferencia',
       usuarioId: ingreso.usuario?.id ?? '',
@@ -342,13 +427,21 @@ export class IngresosComponent implements OnInit {
       this.ingresoForm.markAllAsTouched();
       return;
     }
+    if (this.guardando()) return;
 
     const v = this.ingresoForm.value;
+    const montoNum = Number(String(v.monto ?? '').replace(/[^\d.]/g, ''));
+    if (!Number.isFinite(montoNum) || montoNum <= 0) {
+      this.ingresoForm.get('monto')?.setErrors({ montoInvalido: true });
+      this.ingresoForm.markAllAsTouched();
+      this.mostrarToast('Ingresa un monto válido mayor a 0.');
+      return;
+    }
     const input = {
       descripcion: v.descripcion,
-      monto: Number(v.monto),
+      monto: montoNum,
       fecha: v.fecha,
-      categoria: v.categoria || 'Otros',
+      categoria: v.categoria || '',
       metodo: v.metodo || 'Transferencia',
     };
 
@@ -356,15 +449,16 @@ export class IngresosComponent implements OnInit {
       ? this.ingresosService.updateIngreso(this.ingresoEditando()!.id, input)
       : this.ingresosService.createIngreso(input);
 
-    this.cargando.set(true);
+    this.guardando.set(true);
     request$.subscribe({
       next: () => {
-        this.cargando.set(false);
         this.cerrarModal();
+        this.guardando.set(false);
+        this.mostrarToast(this.ingresoEditando() ? 'Cambios guardados correctamente' : 'Ingreso registrado correctamente');
         this.cargarDatos();
       },
       error: (err) => {
-        this.cargando.set(false);
+        this.guardando.set(false);
         alert(err?.error?.message ?? 'Ocurrió un error al guardar el ingreso.');
       },
     });
@@ -391,6 +485,7 @@ export class IngresosComponent implements OnInit {
         this.mostrarConfirmacion.set(false);
         this.ingresoAEliminar.set(null);
         this.cargarDatos();
+        this.papeleraAviso.set('El ingreso se movió a la papelera.');
       },
       error: (err) => {
         this.cargando.set(false);

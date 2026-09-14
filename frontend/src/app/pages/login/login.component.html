@@ -209,6 +209,17 @@
           }
         </button>
       </form>
+
+      <div class="divider">
+        <span>o continúa con</span>
+      </div>
+
+      <div class="google-button-wrapper">
+        <div id="google-signin-button" class="google-host"></div>
+        <span *ngIf="!googleCargado()" class="google-nota">
+          Cargando opciones de Google...
+        </span>
+      </div>
     </div>
   </section>
 </div>

@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './guards/auth.guard';
+import { authGuard, adminOnlyGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
@@ -17,42 +17,30 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./pages/ingresos/ingresos.component').then((m) => m.IngresosComponent),
   },
-  // Secciones visibles y portadas al router: se mostrarán Próximamente.
   {
     path: 'gastos',
     canActivate: [authGuard],
-    loadComponent: () => import('./pages/proximamente/proximamente.component').then((m) => m.ProximamenteComponent),
-    data: { titulo: 'Gastos', descripcion: 'Administra y categoriza todos tus gastos en detalle.', icono: 'trending-down' },
-  },
-  {
-    path: 'movimientos',
-    canActivate: [authGuard],
-    loadComponent: () => import('./pages/proximamente/proximamente.component').then((m) => m.ProximamenteComponent),
-    data: { titulo: 'Movimientos', descripcion: 'Consulta el historial completo de ingresos y gastos.', icono: 'history' },
+    loadComponent: () => import('./pages/gastos/gastos.component').then((m) => m.GastosComponent),
   },
   {
     path: 'presupuestos',
     canActivate: [authGuard],
-    loadComponent: () => import('./pages/proximamente/proximamente.component').then((m) => m.ProximamenteComponent),
-    data: { titulo: 'Presupuestos', descripcion: 'Define límites mensuales por categoría y controla tu gasto.', icono: 'pie-chart' },
+    loadComponent: () => import('./pages/presupuestos/presupuestos.component').then((m) => m.PresupuestosComponent),
   },
   {
     path: 'categorias',
     canActivate: [authGuard],
-    loadComponent: () => import('./pages/proximamente/proximamente.component').then((m) => m.ProximamenteComponent),
-    data: { titulo: 'Categorías', descripcion: 'Gestiona las categorías que organizan tus movimientos.', icono: 'tag' },
+    loadComponent: () => import('./pages/categorias/categorias.component').then((m) => m.CategoriasComponent),
   },
   {
     path: 'reportes',
     canActivate: [authGuard],
-    loadComponent: () => import('./pages/proximamente/proximamente.component').then((m) => m.ProximamenteComponent),
-    data: { titulo: 'Reportes', descripcion: 'Analiza tus finanzas con gráficos y comparativas.', icono: 'bar-chart-3' },
+    loadComponent: () => import('./pages/reportes/reportes.component').then((m) => m.ReportesComponent),
   },
   {
     path: 'usuarios',
-    canActivate: [authGuard],
-    loadComponent: () => import('./pages/proximamente/proximamente.component').then((m) => m.ProximamenteComponent),
-    data: { titulo: 'Usuarios', descripcion: 'Administra usuarios, roles y accesos al sistema.', icono: 'users' },
+    canActivate: [authGuard, adminOnlyGuard],
+    loadComponent: () => import('./pages/usuarios/usuarios.component').then((m) => m.UsuariosComponent),
   },
   {
     path: 'configuracion',

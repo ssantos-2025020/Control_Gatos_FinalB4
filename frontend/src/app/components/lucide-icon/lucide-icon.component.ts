@@ -15,6 +15,9 @@ import {
   ChartNoAxesCombined, Mail, Globe, Monitor, Shield, CreditCard,
   Lightbulb, TrendingUpDown, Send, LogIn, Gift, Wrench, X, Info,
   Camera, GripHorizontal, Lock,
+  Baby, Book, Briefcase, Bus, Coffee, Dumbbell, Film, Fuel, Gamepad2,
+  Hammer, HandCoins, Laptop, MapPin, Music, Percent, Phone, School,
+  Smartphone, Sofa, Sparkles, Star, Stethoscope, Ticket, Accessibility, KeyRound, RotateCcw
 } from 'lucide';
 
 const ICON_MAP: Record<string, any[]> = {
@@ -69,6 +72,7 @@ const ICON_MAP: Record<string, any[]> = {
   'download': Download,
   'filter': Filter,
   'history': History,
+  'rotate-ccw': RotateCcw,
   'file-text': FileText,
   'chart-line': ChartLine,
   'arrow-up-right': ArrowUpRight,
@@ -101,6 +105,31 @@ const ICON_MAP: Record<string, any[]> = {
   'camera': Camera,
   'grip-horizontal': GripHorizontal,
   'lock': Lock,
+  'baby': Baby,
+  'book': Book,
+  'briefcase': Briefcase,
+  'bus': Bus,
+  'coffee': Coffee,
+  'dumbbell': Dumbbell,
+  'film': Film,
+  'fuel': Fuel,
+  'gamepad-2': Gamepad2,
+  'hammer': Hammer,
+  'hand-coins': HandCoins,
+  'laptop': Laptop,
+  'map-pin': MapPin,
+  'music': Music,
+  'percent': Percent,
+  'phone': Phone,
+  'school': School,
+  'smartphone': Smartphone,
+  'sofa': Sofa,
+  'sparkles': Sparkles,
+  'star': Star,
+  'stethoscope': Stethoscope,
+  'ticket': Ticket,
+  'accessibility': Accessibility,
+  'key-round': KeyRound,
 };
 
 @Component({
@@ -108,7 +137,41 @@ const ICON_MAP: Record<string, any[]> = {
   standalone: true,
   imports: [CommonModule],
   template: `<svg #svgEl xmlns="http://www.w3.org/2000/svg" [attr.width]="size" [attr.height]="size" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg>`,
-  styles: [`:host { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }`],
+  styles: [
+    `:host { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+    button.btn-edit-ic,
+    button.btn-action:not(.danger) {
+      background: rgba(251, 146, 60, 0.15) !important;
+      color: #ffffff !important;
+      border-radius: 50% !important;
+      padding: 7px !important;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    button.btn-del-ic,
+    button.btn-action.danger {
+      background: rgba(244, 63, 94, 0.15) !important;
+      color: #ffffff !important;
+      border-radius: 50% !important;
+      padding: 7px !important;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    button.btn-edit-ic svg,
+    button.btn-action:not(.danger) svg {
+      stroke: #ffffff !important;
+    }
+
+    button.btn-del-ic svg,
+    button.btn-action.danger svg {
+      stroke: #ffffff !important;
+    }`,
+  ],
   encapsulation: ViewEncapsulation.None,
 })
 export class LucideIconComponent implements OnChanges {

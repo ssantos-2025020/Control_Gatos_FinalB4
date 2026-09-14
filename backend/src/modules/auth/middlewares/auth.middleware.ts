@@ -29,3 +29,14 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
     res.status(401).json({ success: false, message: 'Token inválido o expirado.' });
   }
 }
+
+/**
+ * Middleware que verifica si el usuario es ADMIN
+ */
+export function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+  if (req.user?.role !== 'ADMIN') {
+    res.status(403).json({ success: false, message: 'Acceso denegado. Se requiere rol de administrador.' });
+    return;
+  }
+  next();
+}

@@ -29,6 +29,7 @@ export interface GastoInput {
   monto: number;
   fecha: string;
   categoriaId: string;
+  metodo?: 'Efectivo' | 'Tarjeta' | 'Transferencia';
 }
 
 export interface FiltroGastos {

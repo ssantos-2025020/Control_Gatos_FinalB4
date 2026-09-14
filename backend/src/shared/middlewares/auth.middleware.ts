@@ -64,7 +64,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
       id: usuario.id,
       email: payload.email,
       nombre: payload.nombre ?? '',
-      role: (payload.role ?? usuario.role) as string,
+      role: usuario.role,
     };
 
     next();

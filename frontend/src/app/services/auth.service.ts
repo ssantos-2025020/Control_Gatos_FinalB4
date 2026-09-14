@@ -7,6 +7,7 @@ export interface Usuario {
   email: string;
   nombre: string;
   role: string;
+  foto?: string;
 }
 
 export interface LoginResponse {
@@ -27,8 +28,18 @@ export interface MeResponse {
   usuario: Usuario;
 }
 
+export interface GoogleLoginRequest {
+  idToken: string;
+}
+
 const TOKEN_KEY = 'auth_token';
 const USUARIO_KEY = 'auth_usuario';
+
+/**
+ * Foto de perfil elegida en la sesión actual (NO se persiste en el backend):
+ * se conserva solo mientras dura la sesión y se borra al cerrar sesión.
+ */
+const FOTO_SESION_KEY = 'auth_foto_sesion';
 
 /** Segundos antes de la expiración en que se muestra el aviso de cierre de sesión. */
 export const AVISO_SEGUNDOS = 60;
@@ -62,11 +73,21 @@ export class AuthService {
   /** Timestamp (ms) de la última actividad detectada del usuario. */
   private ultimaActividad: number = Date.now();
 
+  /**
+   * Indica si el contador de expiración está pausado. Se pausa desde el login
+   * hasta la primera interacción del usuario con la página: el token NO empieza
+   * a venirse hasta que el usuario interactúa por primera vez.
+   */
+  private expiracionPausada: boolean = true;
+
   /** Aviso de cierre inminente: nombre del usuario y segundos restantes. */
   readonly avisoExpiracion = signal<{ nombre: string; segundos: number } | null>(null);
 
   /** Mensaje (personalizado) de sesión expirada. La UI reacciona para volver al login. */
   readonly sesionExpirada = signal<string | null>(null);
+
+  /** Usuario de la sesión actual (reactive: la UI reacciona al cambiar foto, etc.). */
+  readonly usuarioSesion = signal<Usuario | null>(this.getUsuario());
 
   get token(): string | null {
     return localStorage.getItem(TOKEN_KEY);
@@ -91,23 +112,64 @@ export class AuthService {
     return this.http.get<MeResponse>(`${this.apiUrl}/me`);
   }
 
+  googleLogin(idToken: string): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(`${this.apiUrl}/google`, { idToken }).pipe(
+      tap((respuesta) => this.guardarSesion(respuesta.token, respuesta.usuario)),
+    );
+  }
+
+  /**
+   * Cambia la foto de perfil SOLO para la sesión actual: no se envía al
+   * backend ni se persiste. Permanece visible hasta cerrar sesión y al volver
+   * a entrar se muestra la foto guardada en la cuenta (o ninguna).
+   */
+  cambiarFotoLocal(foto: string): void {
+    localStorage.setItem(FOTO_SESION_KEY, foto);
+    this.aplicarFotoSesion();
+  }
+
   getUsuario(): Usuario | null {
     const raw = localStorage.getItem(USUARIO_KEY);
     if (!raw) {
       return null;
     }
     try {
-      return JSON.parse(raw) as Usuario;
+      const u = JSON.parse(raw) as Usuario;
+      const fotoSesion = localStorage.getItem(FOTO_SESION_KEY);
+      if (fotoSesion) {
+        u.foto = fotoSesion;
+      }
+      return u;
     } catch {
       return null;
+    }
+  }
+
+  /**
+   * Reaplica la foto de sesión sobre el usuario archivo localStorage y sobre
+   * el signal. Se llama tras guardarSesion (p.ej. renovación de token), para
+   * que el refresh en silencio NO borre la foto elegida en la sesión.
+   */
+  private aplicarFotoSesion(): void {
+    const foto = localStorage.getItem(FOTO_SESION_KEY);
+    const actual = this.getUsuario();
+    if (foto && actual) {
+      this.actualizarDatosEnStorage({ ...actual, foto });
     }
   }
 
   /** Actualiza los datos mostrables del usuario en la sesión actual (sin llamar al backend). */
   actualizarDatos(nombre: string, email: string): void {
     const actual = this.getUsuario();
-    if (!actual) return;
-    localStorage.setItem(USUARIO_KEY, JSON.stringify({ ...actual, nombre, email }));
+    if (!actual) {
+      return;
+    }
+    this.actualizarDatosEnStorage({ ...actual, nombre, email });
+  }
+
+  private actualizarDatosEnStorage(usuario: Usuario): void {
+    localStorage.setItem(USUARIO_KEY, JSON.stringify(usuario));
+    this.usuarioSesion.set(usuario);
   }
 
   isAuthenticated(): boolean {
@@ -137,12 +199,33 @@ export class AuthService {
     }
   }
 
-  /** Programa el cierre de sesión automático y el aviso previo. */
+  /**
+   * Programa el cierre de sesión automático y el aviso previo.
+   * Si aún no hubo actividad del usuario, la cuenta queda en pausa y arrancará
+   * con la primera interacción (ver registrarActividad).
+   */
   iniciarVigilancia(): void {
     this.cerrarTimer();
     this.cerrarAviso();
     this.detenerVigilanciaInterval();
     this.detenerRenovarInterval();
+
+    // Sliding session: mientras haya actividad reciente, renovar el token en
+    // silencio antes de que expire para que la sesión no se cierre nunca.
+    this.renovarInterval = setInterval(() => this.renovarSiHayActividad(), INTERVALO_RENOVAR_MS);
+
+    // La cuenta de expiración solo comienza cuando el usuario interactúa.
+    if (this.expiracionPausada) {
+      return;
+    }
+
+    this.programarExpiracion();
+  }
+
+  /** Programa el aviso y el cierre de sesión según la expiración actual del token. */
+  private programarExpiracion(): void {
+    this.cerrarTimer();
+    this.cerrarAviso();
 
     const tokenExp = this.expiracion;
     if (tokenExp === null) {
@@ -169,10 +252,6 @@ export class AuthService {
     }
 
     this.expiracionTimer = setTimeout(() => this.expirarSesion(), ms);
-
-    // Sliding session: mientras haya actividad reciente, renovar el token en
-    // silencio antes de que expire para que la sesión no se cierre nunca.
-    this.renovarInterval = setInterval(() => this.renovarSiHayActividad(), INTERVALO_RENOVAR_MS);
   }
 
   /**
@@ -180,8 +259,15 @@ export class AuthService {
    * Si ya está visible el aviso de expiración, lo cancela y renueva la sesión
    * en silencio: la actividad reciente demuestra que sigue usando la app.
    */
-  registrarActividad(): void {
+registrarActividad(): void {
     this.ultimaActividad = Date.now();
+
+    // Primera interacción: desbloquear la pausa y empezar a correr la
+    // expiración del token (el token NO se vencía antes de interactuar).
+    if (this.expiracionPausada) {
+      this.expiracionPausada = false;
+      this.programarExpiracion();
+    }
 
     // Si el aviso ya apareció pero el usuario retomó actividad, cancelar
     // el cierre y renovar la sesión de inmediato.
@@ -246,14 +332,30 @@ export class AuthService {
     this.detenerVigilanciaInterval();
     this.detenerRenovarInterval();
     this.sesionExpirada.set(null);
+    this.usuarioSesion.set(null);
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USUARIO_KEY);
+    localStorage.removeItem(FOTO_SESION_KEY);
+
+    // Desactiva el one-tap/auto-selección de Google para que, al volver a
+    // iniciar sesión, se muestre SIEMPRE el selector de cuentas y no quede
+    // atascado con la sesión anterior.
+    const gid = (window as any)?.google?.accounts?.id;
+    if (gid && typeof gid.disableAutoSelect === 'function') {
+      try {
+        gid.disableAutoSelect();
+      } catch {
+        /* sin efecto si el SDK no está activo */
+      }
+    }
   }
 
   private guardarSesion(token: string, usuario: Usuario): void {
     this.sesionExpirada.set(null);
     localStorage.setItem(TOKEN_KEY, token);
     localStorage.setItem(USUARIO_KEY, JSON.stringify(usuario));
+    this.aplicarFotoSesion();
+    this.usuarioSesion.set(this.getUsuario());
     this.iniciarVigilancia();
   }
 

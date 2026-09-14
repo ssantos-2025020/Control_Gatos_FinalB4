@@ -38,6 +38,16 @@ class UsuariosController {
   public async createUsuario(req: Request, res: Response): Promise<void> {
     const data = req.body as CreateUsuarioDTO;
 
+    if (!data.email || !data.nombre || !data.password) {
+      res.status(400).json({ message: 'Email, nombre y contraseña son obligatorios.' });
+      return;
+    }
+
+    if (data.email.trim() === '' || data.nombre.trim() === '' || data.password.trim() === '') {
+      res.status(400).json({ message: 'Email, nombre y contraseña son obligatorios.' });
+      return;
+    }
+
     try {
       const usuario = await usuariosService.createUsuario(data);
       res.status(201).json(usuario);

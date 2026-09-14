@@ -33,9 +33,11 @@ import { AuthService } from '../../services/auth.service';
         <a class="nav-link" routerLink="/reportes" routerLinkActive="active">
           <lucide-icon [name]="'bar-chart-3'" [size]="18" class="nav-icon"></lucide-icon> Reportes
         </a>
-        <a class="nav-link" routerLink="/usuarios" routerLinkActive="active">
-          <lucide-icon [name]="'users'" [size]="18" class="nav-icon"></lucide-icon> Usuarios
-        </a>
+        @if (isAdmin()) {
+          <a class="nav-link" routerLink="/usuarios" routerLinkActive="active">
+            <lucide-icon [name]="'users'" [size]="18" class="nav-icon"></lucide-icon> Usuarios
+          </a>
+        }
         <a class="nav-link" routerLink="/configuracion" routerLinkActive="active">
           <lucide-icon [name]="'settings'" [size]="18" class="nav-icon"></lucide-icon> Configuración
         </a>
@@ -43,10 +45,14 @@ import { AuthService } from '../../services/auth.service';
 
       <div class="sidebar-footer">
         <div class="user-chip">
-          <div class="user-chip-avatar">{{ usuario?.nombre?.charAt(0) }}</div>
+          @if (usuario()?.foto) {
+            <img [src]="usuario()?.foto" [alt]="usuario()?.nombre || ''" class="user-chip-avatar user-chip-avatar-img" />
+          } @else {
+            <div class="user-chip-avatar">{{ usuario()?.nombre?.charAt(0) || 'U' }}</div>
+          }
 <div class="user-chip-info">
-            <span class="user-chip-name">{{ usuario?.nombre }}</span>
-            <span class="user-chip-role" [class.admin]="usuario?.role === 'ADMIN'">{{ usuario?.role }}</span>
+            <span class="user-chip-name">{{ usuario()?.nombre }}</span>
+            <span class="user-chip-role" [class.admin]="usuario()?.role === 'ADMIN'">{{ usuario()?.role }}</span>
           </div>
         </div>
         <button (click)="cerrarSesion()" class="btn-logout">
@@ -188,6 +194,14 @@ import { AuthService } from '../../services/auth.service';
       flex-shrink: 0;
     }
 
+    .user-chip-avatar-img {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--glass-border);
+    }
+
     .user-chip-info {
       display: flex;
       flex-direction: column;
@@ -248,7 +262,11 @@ export class SidebarComponent {
   private authService = inject(AuthService);
   private router = inject(Router);
 
-  usuario = this.authService.getUsuario();
+  usuario = this.authService.usuarioSesion;
+
+  isAdmin(): boolean {
+    return this.usuario()?.role === 'ADMIN';
+  }
 
   cerrarSesion(): void {
     this.authService.cerrarSesion();

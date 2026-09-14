@@ -10,12 +10,12 @@ import { AuthService } from '../../services/auth.service';
 import { GastosService, Gasto } from '../../services/gastos.service';
 import { IngresosService, Ingreso } from '../../services/ingresos.service';
 import { CategoriasService, Categoria } from '../../services/categorias.service';
+import { PresupuestosService, Presupuesto } from '../../services/presupuestos.service';
 import { CurrencyService } from '../../services/currency.service';
 import { ConfigService } from '../../services/config.service';
 import { FiltroFechaService } from '../../services/filtro-fecha.service';
 import { AlertaPresupuestoComponent } from '../../components/alerta-presupuesto/alerta-presupuesto.component';
 import { SelectorMesComponent } from '../../components/selector-mes/selector-mes.component';
-import { PRESUPUESTOS_BASE } from '../../services/mock-data';
 
 @Component({
   selector: 'app-dashboard',
@@ -30,6 +30,7 @@ export class DashboardComponent implements OnInit {
   private gastosService = inject(GastosService);
   private ingresosService = inject(IngresosService);
   private categoriasService = inject(CategoriasService);
+  private presupuestosService = inject(PresupuestosService);
   private router = inject(Router);
   private fb = inject(FormBuilder);
   currencyService = inject(CurrencyService);
@@ -43,18 +44,13 @@ export class DashboardComponent implements OnInit {
   gastos = signal<Gasto[]>([]);
   ingresos = signal<Ingreso[]>([]);
   categorias = signal<Categoria[]>([]);
+  presupuestosApi = signal<Presupuesto[]>([]);
+  private cargarToken = 0;
 
   mostrarGastoModal = signal(false);
-  mostrarTodosPresupuestos = signal(false);
-  mostrarTodosMovimientos = signal(false);
   filtroGranularidad = signal<'dia' | 'semana' | 'mes'>('dia');
   filtroPeriodoCategorias = signal<'mes' | 'mesAnterior' | 'tresMeses'>('mes');
   gastoForm!: FormGroup;
-
-  private getMesActual(): string {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  }
 
   getLabelMes(): string {
     return this.filtroFecha.getLabelMes();
@@ -125,21 +121,18 @@ export class DashboardComponent implements OnInit {
   totalGastadoPeriodo = computed(() => this.currencyService.formatear(this.totalGastadoPeriodoUSD()));
 
   private agruparGastosPorCategoria(list: Gasto[]) {
+    const base = this.categorias();
+    const baseSet = new Set(base.map((c) => c.nombre));
+
     const map: { [key: string]: { name: string; amountUSD: number; color: string } } = {};
-    const colores: { [key: string]: string } = {
-      'Comida': '#1268ff', 'Transporte': '#00b9e8', 'Servicios': '#7228e8',
-      'Entretenimiento': '#ff6b9d', 'Salud': '#00e7a8', 'Otros': '#fbbf24',
-    };
-    const paleta = ['#1268ff', '#00b9e8', '#7228e8', '#ff6b9d', '#00e7a8', '#ffa500', '#6ea8ff', '#c084fc', '#00d0a8', '#fbbf24'];
 
     list.forEach((g) => {
       const rawName = g.categoria?.nombre || 'Sin Categoría';
-      // Las categorías sin presupuesto base se pliegan dentro de "Otros"
+      // Las categorías fuera del catálogo del usuario se pliegan dentro de "Otros"
       // para mantener la correspondencia con la vista de presupuestos.
-      const catName = PRESUPUESTOS_BASE[rawName] !== undefined ? rawName : 'Otros';
-      const catColor = g.categoria?.color || colores[catName] || paleta[Object.keys(map).length % paleta.length];
+      const catName = baseSet.has(rawName) ? rawName : 'Otros';
       if (!map[catName]) {
-        map[catName] = { name: catName, amountUSD: 0, color: colores[catName] ?? catColor };
+        map[catName] = { name: catName, amountUSD: 0, color: this.categoriasService.colorDeCategoria(catName) };
       }
       map[catName].amountUSD += Number(g.monto);
     });
@@ -166,19 +159,21 @@ export class DashboardComponent implements OnInit {
     const diasEnMes = new Date(y, m, 0).getDate();
     const granularidad = this.filtroGranularidad();
 
+    // Cuando granularidad es 'mes', usamos el bar chart en su lugar
     if (granularidad === 'mes') {
       return { labels: [], datasets: [{ data: [] }] };
     }
 
     let labels: string[] = [];
     let acumulados: number[] = [];
+    let promedioMovil: number[] = [];
 
     if (granularidad === 'semana') {
       const semanasLabels: string[] = [];
       const semanasMontos: number[] = [];
       for (let d = 1; d <= diasEnMes; d += 7) {
         const fin = Math.min(d + 6, diasEnMes);
-        semanasLabels.push(`${d}-${fin}`);
+        semanasLabels.push(`Sem ${Math.ceil(d/7)}`);
         semanasMontos.push(0);
       }
       gastos.forEach((g) => {
@@ -188,6 +183,15 @@ export class DashboardComponent implements OnInit {
       });
       labels = semanasLabels;
       acumulados = semanasMontos;
+
+      // Promedio móvil de 2 semanas
+      for (let i = 0; i < acumulados.length; i++) {
+        if (i === 0) {
+          promedioMovil.push(acumulados[i]);
+        } else {
+          promedioMovil.push((acumulados[i] + acumulados[i-1]) / 2);
+        }
+      }
     } else {
       const gastosPorDia: number[] = new Array(diasEnMes).fill(0);
       gastos.forEach((g) => {
@@ -196,33 +200,78 @@ export class DashboardComponent implements OnInit {
       });
       labels = Array.from({ length: diasEnMes }, (_, i) => String(i + 1));
       acumulados = gastosPorDia;
+
+      // Promedio móvil de 3 días
+      for (let i = 0; i < acumulados.length; i++) {
+        if (i < 2) {
+          promedioMovil.push(acumulados[i]);
+        } else {
+          promedioMovil.push((acumulados[i] + acumulados[i-1] + acumulados[i-2]) / 3);
+        }
+      }
     }
 
     const converted = acumulados.map(v => this.currencyService.convertir(v));
+    const promedioConverted = promedioMovil.map(v => this.currencyService.convertir(v));
+
+    // Calcular promedio general para línea de referencia
+    const promedioGeneral = converted.reduce((a, b) => a + b, 0) / converted.length || 0;
+    const lineaPromedio = new Array(converted.length).fill(promedioGeneral);
 
     return {
       labels,
-      datasets: [{
-        data: converted,
-        borderColor: '#3b82f6',
-        backgroundColor: (ctx: any) => {
-          const chart = ctx.chart;
-          const { ctx: c, chartArea } = chart;
-          if (!chartArea) return 'rgba(59,130,246,0.1)';
-          const gradient = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-          gradient.addColorStop(0, 'rgba(59,130,246,0.25)');
-          gradient.addColorStop(1, 'rgba(59,130,246,0.01)');
-          return gradient;
+      datasets: [
+        {
+          type: 'line',
+          label: 'Gastos diarios',
+          data: converted,
+          borderColor: '#3b82f6',
+          backgroundColor: (ctx: any) => {
+            const chart = ctx.chart;
+            const { ctx: c, chartArea } = chart;
+            if (!chartArea) return 'rgba(59,130,246,0.1)';
+            const gradient = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+            gradient.addColorStop(0, 'rgba(59,130,246,0.4)');
+            gradient.addColorStop(1, 'rgba(59,130,246,0.05)');
+            return gradient;
+          },
+          fill: true,
+          tension: 0.4,
+          borderWidth: 3,
+          pointRadius: 2,
+          pointHoverRadius: 6,
+          pointBackgroundColor: '#3b82f6',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          order: 1,
         },
-        fill: true,
-        tension: 0.4,
-        borderWidth: 2.5,
-        pointRadius: 0,
-        pointHoverRadius: 6,
-        pointHoverBackgroundColor: '#3b82f6',
-        pointHoverBorderColor: '#fff',
-        pointHoverBorderWidth: 2,
-      }],
+        {
+          type: 'line',
+          label: 'Tendencia (promedio móvil)',
+          data: promedioConverted,
+          borderColor: '#f59e0b',
+          backgroundColor: 'transparent',
+          borderDash: [5, 5],
+          tension: 0.4,
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          pointBackgroundColor: '#f59e0b',
+          order: 2,
+        },
+        {
+          type: 'line',
+          label: 'Promedio del mes',
+          data: lineaPromedio,
+          borderColor: '#10b981',
+          backgroundColor: 'transparent',
+          borderDash: [10, 5],
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 0,
+          order: 3,
+        },
+      ],
     };
   });
 
@@ -233,12 +282,28 @@ export class DashboardComponent implements OnInit {
     const m = this.filtroFecha.mes();
     const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
     const total = gastos.reduce((s, g) => s + Number(g.monto), 0);
+
+    // Si no hay gastos, mostrar una barra vacía con el mensaje apropiado
     if (total === 0) {
-      return { labels: [], datasets: [{ data: [] }] };
+      return {
+        labels: [`${meses[m - 1]} ${y}`],
+        datasets: [{
+          label: 'Total',
+          data: [0],
+          backgroundColor: ['rgba(148,163,184,0.3)'],
+          borderColor: '#94a3b8',
+          borderRadius: 10,
+          borderSkipped: false,
+          maxBarThickness: 48,
+          barPercentage: 0.3,
+        }],
+      };
     }
+
     return {
       labels: [`${meses[m - 1]} ${y}`],
       datasets: [{
+        label: 'Total',
         data: [this.currencyService.convertir(total)],
         backgroundColor: ['rgba(59,130,246,0.85)'],
         borderColor: '#3b82f6',
@@ -260,7 +325,19 @@ export class DashboardComponent implements OnInit {
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { display: false },
+        legend: {
+          display: true,
+          position: 'top',
+          align: 'end',
+          labels: {
+            color: '#94a3b8',
+            usePointStyle: true,
+            pointStyle: 'circle',
+            boxWidth: 8,
+            padding: 15,
+            font: { size: 11, family: 'Inter' },
+          },
+        },
         tooltip: {
           backgroundColor: '#1e293b',
           titleColor: '#94a3b8',
@@ -269,16 +346,23 @@ export class DashboardComponent implements OnInit {
           borderWidth: 1,
           cornerRadius: 10,
           padding: 12,
-          displayColors: false,
+          displayColors: true,
           callbacks: {
             title: (items: any) => {
-              if (g === 'semana') return `Semana ${items[0].label} ${meses[m - 1]} ${y}`;
-              if (g === 'mes') return items[0].label;
-              return `${items[0].label} ${y}`;
+              const label = items?.[0]?.label;
+              if (g === 'semana') return `Semana ${label ?? `${meses[m - 1]} ${y}`}`;
+              if (g === 'mes') return `${label ?? `${meses[m - 1]} ${y}`} · Total`;
+              return `Día ${label ?? ''} ${meses[m - 1]} ${y}`;
             },
             label: (item: any) => {
-              const val = item.parsed?.y ?? item.parsed;
-              return this.currencyService.formatearValor(Number(val));
+              const val = item.parsed?.y ?? item.parsed ?? 0;
+              const dataset = item.dataset;
+              let label = String(dataset.label || '');
+              if (label) {
+                label += ': ';
+              }
+              label += this.currencyService.formatearValor(Number(val) || 0);
+              return label;
             },
           },
         },
@@ -286,7 +370,7 @@ export class DashboardComponent implements OnInit {
       scales: {
         x: {
           grid: { color: 'rgba(255,255,255,0.04)', drawTicks: false },
-          ticks: { color: '#475569', font: { size: 10, family: 'Inter' }, maxTicksLimit: 10, padding: 8 },
+          ticks: { color: '#475569', font: { size: 10, family: 'Inter' }, maxTicksLimit: 12, padding: 8 },
           border: { display: false },
         },
         y: {
@@ -315,9 +399,10 @@ export class DashboardComponent implements OnInit {
         data: cats.map(c => this.currencyService.convertir(c.amountUSD)),
         backgroundColor: cats.map(c => c.color),
         borderColor: '#111827',
-        borderWidth: 1,
+        borderWidth: 2,
         hoverBorderColor: '#1e293b',
-        hoverOffset: 6,
+        hoverOffset: 10,
+        hoverBorderWidth: 3,
       }],
     };
   });
@@ -325,28 +410,74 @@ export class DashboardComponent implements OnInit {
   donutChartOptions = computed<ChartOptions<'doughnut'>>(() => ({
     responsive: true,
     maintainAspectRatio: false,
-    cutout: '62%',
+    cutout: '65%',
     plugins: {
       legend: { display: false },
       tooltip: {
         backgroundColor: '#1e293b',
         titleColor: '#94a3b8',
         bodyColor: '#f1f5f9',
-        borderColor: 'rgba(255,255,255,0.1)',
+        borderColor: 'rgba(255,255,255,0.15)',
         borderWidth: 1,
-        cornerRadius: 10,
-        padding: 12,
+        cornerRadius: 12,
+        padding: 16,
+        displayColors: true,
+        boxPadding: 6,
         callbacks: {
+          title: (item: any) => {
+            const cat = this.gastosPorCategoriaPeriodo()[item.dataIndex];
+            return cat?.name || 'Categoría';
+          },
           label: (item: any) => {
             const val = item.parsed;
             const total = this.totalGastadoPeriodoUSD();
-            const pct = total > 0 ? Math.round((this.gastosPorCategoriaPeriodo()[item.dataIndex].amountUSD / total) * 100) : 0;
-            return `${this.currencyService.formatearValor(Number(val))} (${pct}%)`;
+            const cat = this.gastosPorCategoriaPeriodo()[item.dataIndex];
+            const pct = total > 0 ? Math.round((cat?.amountUSD / total) * 100) : 0;
+            const formatted = this.currencyService.formatearValor(Number(val));
+            const limite = cat ? this.presupuestosApi().find((p) => p.nombre === cat.name) : null;
+            const lineas = [
+              `Gastado: ${formatted}`,
+              `Porcentaje: ${pct}%`,
+            ];
+            if (limite && Number(limite.monto) > 0) {
+              lineas.push(`Presupuesto: ${this.currencyService.formatear(Number(limite.monto))}`);
+            }
+            return lineas;
           },
         },
       },
+      animation: {
+        animateScale: true,
+        animateRotate: true,
+        duration: 1000,
+        easing: 'easeOutQuart',
+      },
     },
   }));
+
+  // Métodos helper para validación segura en templates
+  hasBarChartData(): boolean {
+    const data = this.barChartData();
+    return data.datasets && data.datasets[0] && data.datasets[0].data && data.datasets[0].data.length > 0;
+  }
+
+  hasLineChartData(): boolean {
+    const data = this.lineChartData();
+    return data.datasets && data.datasets[0] && data.datasets[0].data && data.datasets[0].data.length > 0;
+  }
+
+  hasDonutChartData(): boolean {
+    const data = this.donutChartData();
+    return data.datasets && data.datasets[0] && data.datasets[0].data && data.datasets[0].data.length > 0;
+  }
+
+  hasChartDataForGranularidad(): boolean {
+    const gran = this.filtroGranularidad();
+    if (gran === 'mes') {
+      return this.hasBarChartData();
+    }
+    return this.hasLineChartData();
+  }
 
   // ===== Otros computed =====
   movimientosRecientes = computed(() => {
@@ -410,47 +541,39 @@ export class DashboardComponent implements OnInit {
 
   presupuestos = computed(() => {
     const cats = this.gastosPorCategoria();
-    const presupuestosBase = PRESUPUESTOS_BASE;
-    const colores = ['#1268ff', '#00e7a8', '#7228e8', '#ffa500', '#ff4259', '#00b9e8', '#fbbf24', '#ff6b9d'];
+    const limitesApi = new Map(this.presupuestosApi().map((p) => [p.nombre, p.monto]));
 
-    return cats.map((c, i) => {
-      const limite = presupuestosBase[c.name] || Math.max(c.amountUSD * 1.5, 500);
-      const porcentaje = Math.round((c.amountUSD / limite) * 1000) / 10;
-      return {
-        nombre: c.name,
-        icono: this.getIconoCategoria(c.name),
-        gastado: c.amountFormatted,
-        gastadoNum: c.amountUSD,
-        limite: this.currencyService.formatear(limite),
-        limiteNum: limite,
-        porcentaje,
-        color: c?.color || colores[i % colores.length],
-        alerta: porcentaje >= 80,
-      };
-    });
+    return cats
+      .filter((c) => c.amountUSD > 0 || (limitesApi.get(c.name) ?? 0) > 0)
+      .map((c) => {
+        const limite = limitesApi.get(c.name) ?? 0;
+        const porcentaje = limite > 0 ? Math.round((c.amountUSD / limite) * 1000) / 10 : 0;
+        return {
+          nombre: c.name,
+          icono: this.getIconoCategoria(c.name),
+          gastado: c.amountFormatted,
+          gastadoNum: c.amountUSD,
+          limite: this.currencyService.formatear(limite),
+          limiteNum: limite,
+          porcentaje,
+          color: c.color,
+          alerta: limite > 0 && porcentaje >= 80,
+        };
+      });
   });
+
+  presupuestoTotales = computed(() => {
+    const items = this.presupuestos();
+    const usado = items.reduce((s, p) => s + p.gastadoNum, 0);
+    const limite = items.reduce((s, p) => s + p.limiteNum, 0);
+    const pct = limite > 0 ? Math.round((usado / limite) * 1000) / 10 : 0;
+    return { usado, limite, pct };
+  });
+
+  presupuestoTotalLimite = computed(() =>
+    this.currencyService.formatear(this.presupuestoTotales().limite));
 
   presupuestosVisibles = computed(() => this.presupuestos().slice(0, 5));
-
-  todosLosMovimientos = computed(() => {
-    const gastos = this.gastosDelMes().map((g) => ({
-      tipo: 'gasto' as const,
-      descripcion: g.descripcion,
-      categoria: g.categoria?.nombre || 'Sin categoría',
-      fecha: g.fecha,
-      monto: Number(g.monto),
-      icono: this.getIconoCategoria(g.categoria?.nombre),
-    }));
-    const ingresosList = this.ingresosDelMes().map((i) => ({
-      tipo: 'ingreso' as const,
-      descripcion: i.descripcion,
-      categoria: 'Ingreso',
-      fecha: i.fecha,
-      monto: Number(i.monto),
-      icono: 'banknote',
-    }));
-    return [...gastos, ...ingresosList].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
-  });
 
   presupuestoCritico = computed(() => {
     const pres = this.presupuestos().filter(p => p.alerta);
@@ -469,6 +592,7 @@ export class DashboardComponent implements OnInit {
   }
 
   public cargarDatos(): void {
+    const token = ++this.cargarToken;
     this.cargando.set(true);
     this.errorMsg.set(null);
 
@@ -484,6 +608,7 @@ export class DashboardComponent implements OnInit {
     let ingresosLoaded = false;
 
     const checkDone = () => {
+      if (token !== this.cargarToken) return;
       if (!gastosLoaded || !ingresosLoaded) return;
       const filtrar = (item: { fecha: string }, rango: { start: Date; end: Date }) => {
         const f = new Date(item.fecha);
@@ -498,13 +623,21 @@ export class DashboardComponent implements OnInit {
     };
 
     this.categoriasService.getCategoriasCompletas().subscribe({
-      next: (cats) => this.categorias.set(cats),
-      error: () => this.categorias.set([]),
+      next: (cats) => { if (token === this.cargarToken) this.categorias.set(cats); },
+      error: () => { if (token === this.cargarToken) this.categorias.set([]); },
+    });
+
+    this.presupuestosService
+      .getPresupuestos(this.filtroFecha.mes(), this.filtroFecha.anio())
+      .subscribe({
+      next: (pres) => { if (token === this.cargarToken) this.presupuestosApi.set(pres); },
+      error: () => { if (token === this.cargarToken) this.presupuestosApi.set([]); },
     });
 
     this.gastosService.getGastosCompletos().subscribe({
-      next: (g) => { this.gastos.set(g); gastosLoaded = true; checkDone(); },
+      next: (g) => { if (token !== this.cargarToken) return; this.gastos.set(g); gastosLoaded = true; checkDone(); },
       error: (err) => {
+        if (token !== this.cargarToken) return;
         this.cargando.set(false);
         this.errorMsg.set('No se pudieron cargar los gastos.');
         console.error(err);
@@ -512,8 +645,9 @@ export class DashboardComponent implements OnInit {
     });
 
     this.ingresosService.getIngresosCompletos().subscribe({
-      next: (i) => { this.ingresos.set(i); ingresosLoaded = true; checkDone(); },
+      next: (i) => { if (token !== this.cargarToken) return; this.ingresos.set(i); ingresosLoaded = true; checkDone(); },
       error: (err) => {
+        if (token !== this.cargarToken) return;
         this.cargando.set(false);
         this.errorMsg.set('No se pudieron cargar los ingresos.');
         console.error(err);
@@ -529,7 +663,7 @@ export class DashboardComponent implements OnInit {
     this.gastoForm.reset({
       descripcion: '',
       monto: '',
-      fecha: new Date().toISOString().substring(0, 10),
+      fecha: this.filtroFecha.hoyIso(),
       categoriaId: this.categorias().length > 0 ? this.categorias()[0].id : '',
     });
     this.mostrarGastoModal.set(true);
@@ -582,7 +716,7 @@ export class DashboardComponent implements OnInit {
   public setFiltroGranularidad(f: 'dia' | 'semana' | 'mes'): void { this.filtroGranularidad.set(f); }
   public setFiltroPeriodoCategorias(f: 'mes' | 'mesAnterior' | 'tresMeses'): void { this.filtroPeriodoCategorias.set(f); }
 
-  public scrollA(id: string): void {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  ngOnDestroy(): void {
+    // Cleanup any subscriptions if needed in the future
   }
 }

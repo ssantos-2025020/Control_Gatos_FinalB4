@@ -95,6 +95,7 @@ export class CurrencyService {
 
   /** Formatea una cantidad ya convertida a la moneda objetivo (sin volver a convertir). */
   formatearValor(valor: number, decimales = 2): string {
+    if (!Number.isFinite(valor)) return '—';
     const num = valor.toLocaleString(this.formatoNumero() === 'en' ? 'en-US' : 'es-VE', {
       minimumFractionDigits: decimales,
       maximumFractionDigits: decimales,

@@ -4,3 +4,7 @@ dist/
 *.log
 .env
 .DS_Store
+# Maqueta (no subir)
+Maquetado_Ingresos.pdf
+# Repo anidado duplicado
+Control-De-Gastos-P2/

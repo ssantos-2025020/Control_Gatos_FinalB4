@@ -728,3 +728,99 @@
     padding: 24px;
   }
 }
+
+/* ------- Google Button Styles ------- */
+.divider {
+  display: flex;
+  align-items: center;
+  margin: 20px 0;
+  color: #8fa6c4;
+  font-size: 13px;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(191, 226, 255, 0.2);
+}
+
+.divider span {
+  padding: 0 12px;
+  font-weight: 500;
+}
+
+.google-button-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 16px;
+  animation: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.36s both;
+}
+
+.google-host {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  height: 64px;
+  box-sizing: border-box;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(1, 159, 252, 0.14), rgba(1, 181, 179, 0.14));
+  border: 1px solid rgba(127, 212, 255, 0.35);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow:
+    0 12px 28px -12px rgba(0, 0, 0, 0.5),
+    0 0 30px -8px rgba(1, 159, 252, 0.35);
+  overflow: hidden;
+  transition: transform 0.18s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.google-host::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(127, 212, 255, 0.55), rgba(1, 159, 252, 0.12) 50%, rgba(94, 234, 212, 0.5));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.google-host:hover {
+  transform: translateY(-2px);
+  border-color: rgba(127, 212, 255, 0.6);
+  box-shadow:
+    0 16px 34px -12px rgba(0, 0, 0, 0.55),
+    0 0 40px -6px rgba(1, 159, 252, 0.55),
+    0 0 70px -10px rgba(1, 181, 179, 0.4);
+}
+
+.google-host:active {
+  transform: translateY(0);
+}
+
+.google-button-wrapper iframe {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-origin: center center;
+  width: 350px;
+  height: 44px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.google-nota {
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: var(--text-muted, #94a3b8);
+  font-weight: 500;
+}
