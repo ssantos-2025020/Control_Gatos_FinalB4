@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt';
 import { query } from './database.service';
+import { SALT_ROUNDS } from './init-database';
 
 export async function checkAdmin(): Promise<void> {
   console.log('Verificando usuario admin...');
@@ -19,9 +20,7 @@ export async function checkAdmin(): Promise<void> {
   // Verificar contraseña
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@controlgastos.com';
   const adminPassword = process.env.ADMIN_PASSWORD || 'Admin123!';
-  
-  console.log(`Intentando verificar contraseña: ${adminPassword}`);
-  
+
   const usuarioConPassword = await query<{ password: string }>(
     'SELECT password FROM usuarios WHERE LOWER(email) = $1',
     [adminEmail.toLowerCase()]
@@ -40,7 +39,6 @@ export async function checkAdmin(): Promise<void> {
     console.log('❌ Contraseña incorrecta');
     console.log('Recreando usuario admin con contraseña correcta...');
     
-    const SALT_ROUNDS = 10;
     const hash = await bcrypt.hash(adminPassword, SALT_ROUNDS);
     const adminNombre = process.env.ADMIN_NOMBRE || 'Administrador';
     

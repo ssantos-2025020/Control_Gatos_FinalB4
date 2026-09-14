@@ -112,6 +112,9 @@ class UsuariosService {
 
     const hash = await bcrypt.hash(data.password, SALT_ROUNDS);
 
+    // El catálogo inicial de categorías por defecto lo crea la base de datos
+    // mediante el trigger trg_categorias_por_defecto (AFTER INSERT ON usuarios):
+    // así no depende del código en ejecución ni del punto de entrada.
     const filas = await query<UsuarioRow>(
       `INSERT INTO usuarios (id, email, nombre, password, role, "createdAt", "updatedAt")
        VALUES (gen_random_uuid()::text, $1, $2, $3, $4::"Role", now(), now())
@@ -224,6 +227,8 @@ class UsuariosService {
     await withTransaction(async ({ query: q }) => {
       await q('DELETE FROM gastos WHERE "usuarioId" = $1', [id]);
       await q('DELETE FROM ingresos WHERE "usuarioId" = $1', [id]);
+      await q('DELETE FROM presupuestos WHERE "usuarioId" = $1', [id]);
+      await q('DELETE FROM categorias WHERE "usuarioId" = $1', [id]);
       await q('DELETE FROM usuarios WHERE id = $1', [id]);
     });
   }
