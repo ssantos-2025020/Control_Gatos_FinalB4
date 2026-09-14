@@ -6,12 +6,12 @@ import { AuthService } from '../../services/auth.service';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { LucideIconComponent } from '../../components/lucide-icon/lucide-icon.component';
 import { IngresosService, Ingreso } from '../../services/ingresos.service';
+import { CategoriasService, Categoria } from '../../services/categorias.service';
 import { UsuariosService } from '../../services/usuarios.service';
 import { CurrencyService } from '../../services/currency.service';
 import { ConfigService } from '../../services/config.service';
 import { FiltroFechaService } from '../../services/filtro-fecha.service';
 import { crearFiltrosAnteriores } from '../../utils/filtros-record';
-import { CATEGORIAS_INGRESO } from '../../services/mock-data';
 import { Usuario } from '../../models/usuario.model';
 
 interface ComparacionTexto {
@@ -29,7 +29,6 @@ interface ComparacionTexto {
 })
 export class IngresosComponent implements OnInit, OnDestroy {
   Math = Math;
-  catIngresos = CATEGORIAS_INGRESO;
 
   guardando = signal(false);
   toast = signal<string | null>(null);
@@ -37,6 +36,7 @@ export class IngresosComponent implements OnInit, OnDestroy {
 
   private authService = inject(AuthService);
   private ingresosService = inject(IngresosService);
+  private categoriasService = inject(CategoriasService);
   private usuariosService = inject(UsuariosService);
   private fb = inject(FormBuilder);
   currencyService = inject(CurrencyService);
@@ -47,6 +47,21 @@ export class IngresosComponent implements OnInit, OnDestroy {
 
   cargando = signal(false);
   errorMsg = signal<string | null>(null);
+
+  // Catálogo unificado de categorías (pertenecientes al usuario autenticado).
+  categorias = signal<Categoria[]>([]);
+
+  // Las categorías aptas para ingresos son las de tipo INGRESO o AMBAS.
+  categoriasIngreso = computed(() => this.categorias().filter((c) => this.categoriasService.esCategoriaIngreso(c)));
+
+  // Categorías únicas basadas en ingresos existentes (filtro de tabla)
+  categoriasUnicas = computed(() => {
+    const cats = new Set<string>();
+    this.ingresos().forEach(i => {
+      if (i.categoria) cats.add(i.categoria);
+    });
+    return Array.from(cats).sort();
+  });
 
   ingresos = signal<Ingreso[]>([]);
   usuarios = signal<Usuario[]>([]);
@@ -78,14 +93,14 @@ export class IngresosComponent implements OnInit, OnDestroy {
   ingresoAEliminar = signal<Ingreso | null>(null);
 
   private colorPorNombre = (n?: string | null): string =>
-    this.catIngresos.find((c) => c.nombre === n)?.color ?? '';
+    this.categoriasService.colorDeCategoria(n ?? '');
 
   public colorCategoria(n?: string | null): string {
-    return this.colorPorNombre(n) || '#00e7a8';
+    return this.colorPorNombre(n);
   }
 
   public iconoCategoria(n?: string | null): string {
-    return this.catIngresos.find((c) => c.nombre === n)?.icono || 'banknote';
+    return 'banknote';
   }
 
   public colorMetodo(m?: string | null): string {
@@ -297,6 +312,11 @@ export class IngresosComponent implements OnInit, OnDestroy {
       error: () => { /* el dropdown queda con solo "Todos" */ },
     });
 
+    this.categoriasService.getCategoriasCompletas().subscribe({
+      next: (list) => this.categorias.set(list),
+      error: () => this.categorias.set([]),
+    });
+
     this.ingresosService.getIngresosCompletos().subscribe({
       next: (list) => {
         this.ingresos.set(list);
@@ -408,11 +428,18 @@ export class IngresosComponent implements OnInit, OnDestroy {
     if (this.guardando()) return;
 
     const v = this.ingresoForm.value;
+    const montoNum = Number(String(v.monto ?? '').replace(/[^\d.]/g, ''));
+    if (!Number.isFinite(montoNum) || montoNum <= 0) {
+      this.ingresoForm.get('monto')?.setErrors({ montoInvalido: true });
+      this.ingresoForm.markAllAsTouched();
+      this.mostrarToast('Ingresa un monto válido mayor a 0.');
+      return;
+    }
     const input = {
       descripcion: v.descripcion,
-      monto: Number(String(v.monto).replace(/,/g, '')),
+      monto: montoNum,
       fecha: v.fecha,
-      categoria: v.categoria || 'Otros',
+      categoria: v.categoria || '',
       metodo: v.metodo || 'Transferencia',
     };
 

@@ -6,20 +6,6 @@
   color: #a855f7;
 }
 
-/* Selector de período-pequeño dentro de la tarjeta 1 y del panel */
-.period-select,
-.evol-select {
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: 8px;
-  color: var(--text-secondary);
-  font-size: 11.5px;
-  font-weight: 600;
-  padding: 3px 7px;
-  cursor: pointer;
-  margin-left: 4px;
-}
-
 /* Comparación (↓/↑) */
 .comparacion-valor {
   color: var(--red);

@@ -44,7 +44,7 @@
             (ngModelChange)="filtroCategoria.set($event); onFiltroCambio()"
           >
             <option value="">Todas las categorías</option>
-            <option *ngFor="let c of catIngresos" [value]="c.nombre">{{ c.nombre }}</option>
+            <option *ngFor="let c of categoriasUnicas()" [value]="c">{{ c }}</option>
           </select>
 
           <div class="date-fields">
@@ -193,9 +193,12 @@
           <div class="form-field">
             <label for="categoria">Categoría</label>
             <select id="categoria" formControlName="categoria" class="form-input">
-              <option value="" disabled>Selecciona categoría</option>
-              <option *ngFor="let c of catIngresos" [value]="c.nombre">{{ c.nombre }}</option>
+              <option value="">Selecciona una categoría...</option>
+              <option *ngFor="let c of categoriasIngreso()" [value]="c.nombre">{{ c.nombre }}</option>
             </select>
+            <div *ngIf="categoriasIngreso().length === 0" class="form-error">
+              No tienes categorías de ingreso. Crea una en la página Categorías.
+            </div>
           </div>
           <div class="form-field">
             <label for="metodo">Método de pago</label>

@@ -13,9 +13,8 @@ import { crearFiltrosAnteriores } from '../../utils/filtros-record';
 import { SelectorMesComponent } from '../../components/selector-mes/selector-mes.component';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { LucideIconComponent } from '../../components/lucide-icon/lucide-icon.component';
-import { PRESUPUESTOS_BASE } from '../../services/mock-data';
+import { PresupuestosService, Presupuesto } from '../../services/presupuestos.service';
 
-const LIMITES_KEY = 'cg_presupuestos';
 const MESES_LARGOS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
@@ -57,6 +56,7 @@ export class PresupuestosComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private categoriasService = inject(CategoriasService);
   private gastosService = inject(GastosService);
+  private presupuestosService = inject(PresupuestosService);
   private fb = inject(FormBuilder);
   currencyService = inject(CurrencyService);
   filtroFecha = inject(FiltroFechaService);
@@ -67,7 +67,11 @@ export class PresupuestosComponent implements OnInit, OnDestroy {
 
   gastosTodos = signal<Gasto[]>([]);
   categorias = signal<Categoria[]>([]);
-  limites = signal<{ [key: string]: number }>(this.leerLimites());
+  presupuestosApi = signal<Presupuesto[]>([]);
+  limites = signal<{ [key: string]: number }>({});
+
+  // Catálogo apto para gastos (tipo GASTO o AMBAS).
+  categoriasGasto = computed(() => this.categorias().filter((c) => this.categoriasService.esCategoriaGasto(c)));
 
   colorPorNombre = (nombre: string): string =>
     this.categoriasService.colorDeCategoria(nombre);
@@ -133,21 +137,25 @@ export class PresupuestosComponent implements OnInit, OnDestroy {
     return this.gastosDeMes(anio, mes).reduce((s, g) => s + Number(g.monto), 0);
   }
 
-  /** Gastado por categoría del mes visible (categorías base + resto en Otros). */
+  /** Gastado por categoría del mes visible, usando el catálogo real del usuario. */
   gastosPorCategoria = computed(() => {
-    const base = Object.keys(PRESUPUESTOS_BASE);
+    const nombresBase = this.categorias().map((c) => c.nombre);
+    const baseSet = new Set(nombresBase);
     const amounts: { [key: string]: number } = {};
-    base.forEach((k) => { amounts[k] = 0; });
     this.gastosDeMes(this.mesVisual().anio, this.mesVisual().mes).forEach((g) => {
       const rawName = g.categoria?.nombre || 'Sin Categoría';
-      const catName = PRESUPUESTOS_BASE[rawName] !== undefined ? rawName : 'Otros';
+      const catName = baseSet.has(rawName) ? rawName : 'Otros';
       amounts[catName] = (amounts[catName] ?? 0) + Number(g.monto);
     });
-    return base.map((name) => ({ name, amountUSD: amounts[name] }));
+
+    // Solo mostrar categorías que tienen gastos o presupuestos configurados
+    return nombresBase
+      .filter(name => amounts[name] > 0 || this.limites()[name])
+      .map(name => ({ name, amountUSD: amounts[name] }));
   });
 
   limiteEfectivo = (nombre: string, gastado: number): number =>
-    this.limites()[nombre] ?? PRESUPUESTOS_BASE[nombre] ?? Math.max(gastado * 1.5, 500);
+    this.limites()[nombre] ?? 0; // Sin presupuestos por defecto
 
   private calcularEstado(pct: number): EstadoPresupuesto {
     if (pct > 90) return 'Alerta';
@@ -526,12 +534,32 @@ export class PresupuestosComponent implements OnInit, OnDestroy {
         this.gastosService.getGastosCompletos().subscribe({
           next: (g) => {
             this.gastosTodos.set(g);
+            this.presupuestosService.getPresupuestos().subscribe({
+              next: (pres) => {
+                this.presupuestosApi.set(pres);
+                const limites: { [key: string]: number } = {};
+                pres.forEach((p) => {
+                  limites[p.nombre] = p.monto;
+                });
+                this.limites.set(limites);
+                this.cargando.set(false);
+              },
+              error: () => {
+                this.errorMsg.set('No se pudieron cargar los presupuestos.');
+                this.cargando.set(false);
+              },
+            });
+          },
+          error: () => {
+            this.errorMsg.set('No se pudieron cargar los gastos.');
             this.cargando.set(false);
           },
-          error: () => { this.errorMsg.set('No se pudieron cargar los gastos.'); this.cargando.set(false); },
         });
       },
-      error: () => { this.errorMsg.set('No se pudieron cargar las categorías.'); this.cargando.set(false); },
+      error: () => {
+        this.errorMsg.set('No se pudieron cargar las categorías.');
+        this.cargando.set(false);
+      },
     });
   }
 
@@ -572,18 +600,51 @@ export class PresupuestosComponent implements OnInit, OnDestroy {
     if (this.guardando()) return;
     const categoria = this.limiteForm.value.categoria as string;
     const monto = Number(String(this.limiteForm.value.monto).replace(/,/g, ''));
-    const actual = this.limites();
-    if (monto > 0) {
-      actual[categoria] = monto;
-    } else {
-      delete actual[categoria];
-    }
+    const fila = this.presupuestosApi().find((p) => p.nombre === categoria);
     this.guardando.set(true);
-    this.limites.set({ ...actual });
-    this.escribirLimites(actual);
-    this.mostrarModal.set(false);
-    this.guardando.set(false);
-    this.mostrarToast(this.limiteEditando() ? 'Presupuesto actualizado correctamente' : 'Presupuesto guardado correctamente');
+    if (!fila) {
+      const cat = this.categoriasGasto().find((c) => c.nombre === categoria);
+      if (!cat) {
+        this.mostrarToast('Selecciona una categoría de tu catálogo.');
+        this.mostrarModal.set(false);
+        return;
+      }
+    }
+    if (fila) {
+      this.presupuestosService.updateMonto(fila.id, monto).subscribe({
+        next: (upd) => {
+          this.limites.set({ ...this.limites(), [categoria]: upd.monto });
+          this.guardando.set(false);
+          this.mostrarModal.set(false);
+          this.mostrarToast(this.limiteEditando() ? 'Presupuesto actualizado correctamente' : 'Presupuesto guardado correctamente');
+          this.cargarDatos();
+        },
+        error: () => {
+          this.guardando.set(false);
+          this.mostrarToast('No se pudo guardar el presupuesto.');
+        },
+      });
+    } else {
+      const cat = this.categoriasGasto().find((c) => c.nombre === categoria);
+      if (!cat) {
+        this.guardando.set(false);
+        this.mostrarToast('No se encontró la categoría seleccionada.');
+        return;
+      }
+      this.presupuestosService.createPresupuesto(cat.id, monto).subscribe({
+        next: () => {
+          this.limites.set({ ...this.limites(), [categoria]: monto });
+          this.guardando.set(false);
+          this.mostrarModal.set(false);
+          this.mostrarToast('Presupuesto guardado correctamente');
+          this.cargarDatos();
+        },
+        error: () => {
+          this.guardando.set(false);
+          this.mostrarToast('No se pudo guardar el presupuesto.');
+        },
+      });
+    }
   }
 
   // ===== Eliminar con confirmación =====
@@ -598,10 +659,15 @@ export class PresupuestosComponent implements OnInit, OnDestroy {
   confirmarEliminar(): void {
     const item = this.presupuestoAEliminar();
     if (item) {
-      const actual = this.limites();
+      const fila = this.presupuestosApi().find((p) => p.nombre === item.nombre);
+      const actual = { ...this.limites() };
       delete actual[item.nombre];
-      this.limites.set({ ...actual });
-      this.escribirLimites(actual);
+      this.limites.set(actual);
+      if (fila) {
+        this.presupuestosService.deletePresupuesto(fila.id).subscribe({
+          error: () => this.mostrarToast('No se pudo eliminar el presupuesto en el servidor.'),
+        });
+      }
     }
     this.mostrarConfirmacion.set(false);
     this.presupuestoAEliminar.set(null);
@@ -632,22 +698,10 @@ export class PresupuestosComponent implements OnInit, OnDestroy {
     if (n.includes('entreten')) return 'clapperboard';
     if (n.includes('salud')) return 'heart-pulse';
     if (n.includes('educ')) return 'graduation-cap';
-    if (n.includes('hogar')) return 'home';
+    if (n.includes('hogar') || n.includes('vivienda')) return 'home';
+    if (n.includes('sueldo') || n.includes('salario')) return 'wallet';
     if (n.includes('compra')) return 'shopping-bag';
     if (n.includes('viaje')) return 'plane';
     return 'package';
-  }
-
-  private leerLimites(): { [key: string]: number } {
-    try {
-      const raw = localStorage.getItem(LIMITES_KEY);
-      return raw ? (JSON.parse(raw) as { [key: string]: number }) : {};
-    } catch {
-      return {};
-    }
-  }
-
-  private escribirLimites(limites: { [key: string]: number }): void {
-    localStorage.setItem(LIMITES_KEY, JSON.stringify(limites));
   }
 }

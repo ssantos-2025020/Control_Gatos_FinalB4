@@ -75,7 +75,7 @@
           <div class="glass-card chart-panel">
             <div class="panel-header">
               <div class="panel-title">Distribución del presupuesto</div>
-              <select class="evol-select" [ngModel]="periodo()" (ngModelChange)="periodo.set($event); cambiarPeriodo()">
+              <select class="panel-select" [ngModel]="periodo()" (ngModelChange)="periodo.set($event); cambiarPeriodo()">
                 <option value="actual">Este mes</option>
                 <option value="anterior">Mes anterior</option>
               </select>
@@ -142,7 +142,7 @@
             </div>
             <select class="input-filter select-filter" [ngModel]="filtroCategoria()" (ngModelChange)="filtroCategoria.set($event); onFiltroCambio()">
               <option value="">Todas las categorías</option>
-              <option *ngFor="let c of categorias()" [value]="c.nombre">{{ c.nombre }}</option>
+              <option *ngFor="let c of categoriasGasto()" [value]="c.nombre">{{ c.nombre }}</option>
             </select>
             <select class="input-filter select-filter" [ngModel]="filtroEstado()" (ngModelChange)="filtroEstado.set($event); onFiltroCambio()">
               <option value="todos">Todos</option>
@@ -255,7 +255,7 @@
         <label for="categoria">Categoría</label>
         <select id="categoria" formControlName="categoria" class="form-input" [disabled]="!!limiteEditando()">
           <option value="" disabled>Selecciona una categoría</option>
-          <option *ngFor="let c of categorias()" [value]="c.nombre">{{ c.nombre }}</option>
+          <option *ngFor="let c of categoriasGasto()" [value]="c.nombre">{{ c.nombre }}</option>
         </select>
       </div>
 
