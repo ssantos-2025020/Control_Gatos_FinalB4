@@ -38,6 +38,21 @@ export function validarMesAnio(mes: number, anio: number): string | null {
   return null;
 }
 
+/**
+ * Un presupuesto se planifica hacia adelante: no se puede crear para un mes ya
+ * pasado. La comparación se hace contra el mes actual en UTC (mes/anio del
+ * servidor) para no caer en desfases de zona horaria.
+ */
+function validarMesFuturo(mes: number, anio: number): string | null {
+  const ahora = new Date();
+  const actual = ahora.getUTCFullYear() * 12 + (ahora.getUTCMonth() + 1);
+  const objetivo = anio * 12 + mes;
+  if (objetivo < actual) {
+    return 'No puedes crear un presupuesto de un mes ya pasado.';
+  }
+  return null;
+}
+
 function aIso(valor: Date | string | undefined | null): string {
   if (valor instanceof Date) {
     return valor.toISOString();
@@ -108,6 +123,10 @@ class PresupuestosService {
     const errorMesAnio = validarMesAnio(mes, anio);
     if (errorMesAnio) {
       throw new Error(errorMesAnio);
+    }
+    const errorMesFuturo = validarMesFuturo(mes, anio);
+    if (errorMesFuturo) {
+      throw new Error(errorMesFuturo);
     }
 
     const categoria = await query<{ id: string }>(

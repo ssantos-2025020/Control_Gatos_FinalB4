@@ -60,7 +60,7 @@ async function crearUsuarioGoogle(email: string, nombre: string, googleId: strin
   await query(
     `INSERT INTO usuarios (email, nombre, password, role, google_id, foto)
      VALUES ($1, $2, '', 'USER', $3, $4)`,
-    [email.trim().toLowerCase(), nombre, googleId, foto || null],
+    [email.trim().toLowerCase(), nombre, googleId, normalizarFotoGoogle(foto)],
   );
 
   const usuario = await query<UsuarioRow>(
@@ -68,6 +68,25 @@ async function crearUsuarioGoogle(email: string, nombre: string, googleId: strin
     [email.trim().toLowerCase()],
   );
   return usuario[0];
+}
+
+/**
+ * Garantiza que una URL de foto de Google se sirva correctamente: Google entrega
+ * las fotos de perfil como "https://lh3.googleusercontent.com/a/...=s96-c" y, si
+ * falta el parámetro de tamaño, el servidor responde 400. Si la URL no trae
+ * parámetro (sin "="), se le agrega "=s96-c".
+ */
+function normalizarFotoGoogle(foto?: string): string | null {
+  if (!foto) return null;
+  const esFotoGoogle =
+    foto.startsWith('https://lh3.googleusercontent.com') ||
+    foto.startsWith('https://lh5.googleusercontent.com') ||
+    foto.startsWith('https://lh6.googleusercontent.com') ||
+    foto.startsWith('https://lh7.googleusercontent.com');
+  if (esFotoGoogle && !foto.includes('=')) {
+    return `${foto}=s96-c`;
+  }
+  return foto;
 }
 
 class AuthService {
@@ -166,25 +185,27 @@ class AuthService {
       } else {
         const nombreNuevo = (payload.name || '').trim() || usuario.nombre;
 
-        // La foto de Google solo se aplica si el usuario aún no tiene una:
-        // si alguien subió su propia foto de perfil, esta tiene prioridad y
-        // no se pisa con la imagen de Google en logins posteriores.
-        const aplicaFotoGoogle = !usuario.foto && !!payload.picture;
+        // La foto de Google se mantiene al día mientras el usuario NO haya
+        // subido su propia foto (base64): refresca con la URL vigente en cada
+        // login, así una URL vieja/caducada se reemplaza automáticamente.
+        const fotoGoogle = normalizarFotoGoogle(payload.picture);
+        const esFotoPropia = (usuario.foto ?? '').startsWith('data:');
+        const aplicaFotoGoogle = !!fotoGoogle && !esFotoPropia && fotoGoogle !== usuario.foto;
 
         const requiereUpdate =
           !usuario.google_id ||
           nombreNuevo !== usuario.nombre ||
-          (aplicaFotoGoogle && payload.picture !== usuario.foto);
+          aplicaFotoGoogle;
 
         if (requiereUpdate) {
           await query(
             'UPDATE usuarios SET google_id = $1, nombre = $2, foto = COALESCE($3, foto) WHERE LOWER(email) = $4',
-            [payload.sub, nombreNuevo, aplicaFotoGoogle ? payload.picture : null, payload.email.trim().toLowerCase()],
+            [payload.sub, nombreNuevo, aplicaFotoGoogle ? fotoGoogle : null, payload.email.trim().toLowerCase()],
           );
           usuario.google_id = payload.sub;
           usuario.nombre = nombreNuevo;
           if (aplicaFotoGoogle) {
-            usuario.foto = payload.picture;
+            usuario.foto = fotoGoogle;
           }
         }
       }

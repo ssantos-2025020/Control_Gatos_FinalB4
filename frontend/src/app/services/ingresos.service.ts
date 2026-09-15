@@ -29,6 +29,7 @@ export interface IngresoInput {
   fecha: string;
   categoria?: string;
   metodo?: string;
+  usuarioId?: string;
 }
 
 export interface FiltroIngresos {

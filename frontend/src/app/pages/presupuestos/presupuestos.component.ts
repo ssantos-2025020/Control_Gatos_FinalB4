@@ -10,6 +10,7 @@ import { GastosService, Gasto } from '../../services/gastos.service';
 import { CurrencyService } from '../../services/currency.service';
 import { FiltroFechaService } from '../../services/filtro-fecha.service';
 import { crearFiltrosAnteriores } from '../../utils/filtros-record';
+import { normalizarSeparadores, montoDesdeTexto } from '../../utils/monto';
 import { SelectorMesComponent } from '../../components/selector-mes/selector-mes.component';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { LucideIconComponent } from '../../components/lucide-icon/lucide-icon.component';
@@ -128,7 +129,7 @@ export class PresupuestosComponent implements OnInit, OnDestroy {
   private gastosDeMes(anio: number, mes: number): Gasto[] {
     return this.gastosTodos().filter((g) => {
       const d = new Date(g.fecha);
-      return d.getFullYear() === anio && d.getMonth() + 1 === mes;
+      return d.getUTCFullYear() === anio && d.getUTCMonth() + 1 === mes;
     });
   }
 
@@ -494,7 +495,7 @@ export class PresupuestosComponent implements OnInit, OnDestroy {
 
   /** Formatea el monto con separador de miles y hasta 2 decimales (solo visual). */
   formatMontoInput(valor: string): string {
-    let limpio = valor.replace(/[^\d.]/g, '');
+    let limpio = normalizarSeparadores(valor);
     const partes = limpio.split('.');
     if (partes.length > 2) {
       limpio = partes[0] + '.' + partes.slice(1).join('');
@@ -604,7 +605,7 @@ export class PresupuestosComponent implements OnInit, OnDestroy {
     }
     if (this.guardando()) return;
     const categoria = this.limiteForm.value.categoria as string;
-    const monto = Number(String(this.limiteForm.value.monto).replace(/,/g, ''));
+    const monto = montoDesdeTexto(this.limiteForm.value.monto);
     const fila = this.presupuestosApi().find((p) => p.nombre === categoria);
     this.guardando.set(true);
     if (!fila) {

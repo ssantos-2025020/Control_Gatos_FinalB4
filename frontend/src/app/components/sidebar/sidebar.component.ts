@@ -1,6 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { LucideIconComponent } from '../lucide-icon/lucide-icon.component';
 import { AuthService } from '../../services/auth.service';
 
@@ -45,8 +46,8 @@ import { AuthService } from '../../services/auth.service';
 
       <div class="sidebar-footer">
         <div class="user-chip">
-          @if (usuario()?.foto) {
-            <img [src]="usuario()?.foto" [alt]="usuario()?.nombre || ''" class="user-chip-avatar user-chip-avatar-img" />
+          @if (usuario()?.foto && !fotoRota) {
+            <img [src]="fotoSegura()" [alt]="usuario()?.nombre || ''" class="user-chip-avatar user-chip-avatar-img" (error)="fotoRota = true" />
           } @else {
             <div class="user-chip-avatar">{{ usuario()?.nombre?.charAt(0) || 'U' }}</div>
           }
@@ -261,8 +262,18 @@ import { AuthService } from '../../services/auth.service';
 export class SidebarComponent {
   private authService = inject(AuthService);
   private router = inject(Router);
+  private sanitizer = inject(DomSanitizer);
 
   usuario = this.authService.usuarioSesion;
+
+  /** TRUE si la foto cargada dio error (URL muerta): se muestra la inicial. */
+  fotoRota = false;
+
+  /** Url segura para el avatar (acepta https de Google y data-URL de fotos subidas). */
+  fotoSegura(): SafeUrl | null {
+    const foto = this.usuario()?.foto;
+    return foto && !this.fotoRota ? this.sanitizer.bypassSecurityTrustUrl(foto) : null;
+  }
 
   isAdmin(): boolean {
     return this.usuario()?.role === 'ADMIN';

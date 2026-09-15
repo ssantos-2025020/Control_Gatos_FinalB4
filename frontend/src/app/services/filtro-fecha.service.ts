@@ -16,11 +16,22 @@ export class FiltroFechaService {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
-  /** Devuelve la fecha 'YYYY-MM-DD' en hora LOCAL (las del backend se guardan a medianoche local). */
+  /** Devuelve la fecha 'YYYY-MM-DD' en hora LOCAL (útil para fechas construidas localmente). */
   toYMDLocal(value: string | Date): string {
     const d = value instanceof Date ? value : new Date(value);
     if (isNaN(d.getTime())) return '';
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  /**
+   * Devuelve la fecha 'YYYY-MM-DD' en UTC. Las fechas que vienen del backend
+   * se guardan a medianoche UTC ('YYYY-MM-DDT00:00:00.000Z'), por lo que se
+   * deben leer con getters UTC para que el día sea el mismo en todo huso.
+   */
+  toYMDUTC(value: string | Date): string {
+    const d = value instanceof Date ? value : new Date(value);
+    if (isNaN(d.getTime())) return '';
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
   }
 
   getLabelMes(): string {
