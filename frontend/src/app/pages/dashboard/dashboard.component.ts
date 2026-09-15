@@ -62,8 +62,8 @@ export class DashboardComponent implements OnInit {
 
   private getRangoMes(y: number, m: number): { start: Date; end: Date } {
     return {
-      start: new Date(y, m - 1, 1),
-      end: new Date(y, m, 0, 23, 59, 59, 999),
+      start: new Date(Date.UTC(y, m - 1, 1)),
+      end: new Date(Date.UTC(y, m, 0, 23, 59, 59, 999)),
     };
   }
 
@@ -177,7 +177,7 @@ export class DashboardComponent implements OnInit {
         semanasMontos.push(0);
       }
       gastos.forEach((g) => {
-        const dia = new Date(g.fecha).getDate();
+        const dia = new Date(g.fecha).getUTCDate();
         const idx = Math.min(Math.floor((dia - 1) / 7), semanasMontos.length - 1);
         if (idx >= 0) semanasMontos[idx] += Number(g.monto);
       });
@@ -195,7 +195,7 @@ export class DashboardComponent implements OnInit {
     } else {
       const gastosPorDia: number[] = new Array(diasEnMes).fill(0);
       gastos.forEach((g) => {
-        const d = new Date(g.fecha).getDate() - 1;
+        const d = new Date(g.fecha).getUTCDate() - 1;
         if (d >= 0 && d < diasEnMes) gastosPorDia[d] += Number(g.monto);
       });
       labels = Array.from({ length: diasEnMes }, (_, i) => String(i + 1));
@@ -518,7 +518,7 @@ export class DashboardComponent implements OnInit {
     const diasEnMes = new Date(y, m, 0).getDate();
     const gastosPorDia: number[] = new Array(diasEnMes).fill(0);
     gastos.forEach((g) => {
-      const d = new Date(g.fecha).getDate() - 1;
+      const d = new Date(g.fecha).getUTCDate() - 1;
       if (d >= 0 && d < diasEnMes) gastosPorDia[d] += Number(g.monto);
     });
     let maxIdx = 0;

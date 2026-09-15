@@ -61,13 +61,14 @@ class GastosController {
 
   public async createGasto(req: Request, res: Response): Promise<void> {
     const userId = req.user?.id;
+    const userRole = req.user?.role as 'ADMIN' | 'USER' | undefined;
 
-    if (!userId) {
+    if (!userId || !userRole) {
       res.status(401).json({ message: 'Usuario no autenticado.' });
       return;
     }
 
-    const { descripcion, monto, fecha, categoriaId, metodo } = req.body;
+    const { descripcion, monto, fecha, categoriaId, metodo, usuarioId } = req.body;
 
     if (!descripcion || monto === undefined || !categoriaId) {
       res.status(400).json({ message: 'Descripción, monto y categoría son campos obligatorios.' });
@@ -85,12 +86,13 @@ class GastosController {
     }
 
     try {
-      const nuevo = await gastosService.createGasto(userId, {
+      const nuevo = await gastosService.createGasto(userId, userRole, {
         descripcion,
         monto,
         fecha,
         categoriaId,
         metodo,
+        usuarioId,
       });
       res.status(201).json(nuevo);
     } catch (error: any) {
@@ -112,7 +114,7 @@ class GastosController {
       return;
     }
 
-    const { descripcion, monto, fecha, categoriaId, metodo } = req.body;
+    const { descripcion, monto, fecha, categoriaId, metodo, usuarioId } = req.body;
 
     if (monto !== undefined && (isNaN(Number(monto)) || Number(monto) <= 0)) {
       res.status(400).json({ message: 'El monto debe ser un número positivo.' });
@@ -126,6 +128,7 @@ class GastosController {
         fecha,
         categoriaId,
         metodo,
+        usuarioId,
       });
       res.status(200).json(actualizado);
     } catch (error: any) {

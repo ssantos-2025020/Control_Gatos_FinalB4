@@ -110,6 +110,7 @@
             <option *ngFor="let c of categoriasGasto()" [value]="c.id">{{ c.nombre }}</option>
           </select>
           <select
+            *ngIf="esAdmin()"
             class="input-filter select-filter"
             [ngModel]="filtroUsuario()"
             (ngModelChange)="filtroUsuario.set($event); onFiltroCambio()"
@@ -318,12 +319,11 @@
           </div>
         </div>
 
-        <div class="form-field">
+        <div *ngIf="esAdmin()" class="form-field">
           <label for="usuarioId">
             <lucide-icon [name]="'user'" [size]="14" class="field-icon"></lucide-icon> Usuario
           </label>
           <select id="usuarioId" formControlName="usuarioId" class="form-input">
-            <option value="">Sin asignar</option>
             <option *ngFor="let u of usuarios()" [value]="u.id">{{ u.nombre }}</option>
           </select>
         </div>

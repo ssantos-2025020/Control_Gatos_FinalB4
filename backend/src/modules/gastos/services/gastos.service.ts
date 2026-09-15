@@ -45,6 +45,7 @@ export interface GastoInput {
   fecha?: string;
   categoriaId?: string;
   metodo?: 'Efectivo' | 'Tarjeta' | 'Transferencia';
+  usuarioId?: string;
 }
 
 interface GetGastosFilters {
@@ -196,17 +197,19 @@ class GastosService {
     gastoActualId?: string;
   }): Promise<void> {
     const { usuarioId, monto, fecha, categoriaId, gastoActualId } = args;
-    const anio = fecha.getFullYear();
-    const mes = fecha.getMonth() + 1;
+    const anio = fecha.getUTCFullYear();
+    const mes = fecha.getUTCMonth() + 1;
     const excluirActual = (gastoActualId ?? '');
 
     const saldoFilas = await query<{ ingreso: string; gasto: string }>(
       `SELECT
          (SELECT COALESCE(SUM(monto), 0) FROM ingresos
-          WHERE "usuarioId" = $1 AND EXTRACT(YEAR FROM fecha) = $2 AND EXTRACT(MONTH FROM fecha) = $3
+          WHERE "usuarioId" = $1 AND EXTRACT(YEAR FROM fecha AT TIME ZONE 'UTC') = $2
+            AND EXTRACT(MONTH FROM fecha AT TIME ZONE 'UTC') = $3
             AND "deletedAt" IS NULL) AS ingreso,
          (SELECT COALESCE(SUM(monto), 0) FROM gastos
-          WHERE "usuarioId" = $1 AND EXTRACT(YEAR FROM fecha) = $2 AND EXTRACT(MONTH FROM fecha) = $3 AND id <> $4
+          WHERE "usuarioId" = $1 AND EXTRACT(YEAR FROM fecha AT TIME ZONE 'UTC') = $2
+            AND EXTRACT(MONTH FROM fecha AT TIME ZONE 'UTC') = $3 AND id <> $4
             AND "deletedAt" IS NULL) AS gasto`,
       [usuarioId, anio, mes, excluirActual],
     );
@@ -222,15 +225,17 @@ class GastosService {
       `SELECT c.nombre, p.monto
        FROM presupuestos p
        JOIN categorias c ON c.id = p."categoriaId"
-       WHERE p."categoriaId" = $1 AND p."usuarioId" = $2 AND p."deletedAt" IS NULL`,
-      [categoriaId, usuarioId],
+       WHERE p."categoriaId" = $1 AND p."usuarioId" = $2 AND p.mes = $3 AND p.anio = $4
+         AND p."deletedAt" IS NULL`,
+      [categoriaId, usuarioId, mes, anio],
     );
 
     if (presupuesto[0] && Number(presupuesto[0].monto) > 0) {
       const usado = await query<{ total: string }>(
         `SELECT COALESCE(SUM(monto), 0) AS total FROM gastos
          WHERE "usuarioId" = $1 AND "categoriaId" = $2
-           AND EXTRACT(YEAR FROM fecha) = $3 AND EXTRACT(MONTH FROM fecha) = $4
+           AND EXTRACT(YEAR FROM fecha AT TIME ZONE 'UTC') = $3
+           AND EXTRACT(MONTH FROM fecha AT TIME ZONE 'UTC') = $4
            AND id <> $5 AND "deletedAt" IS NULL`,
         [usuarioId, categoriaId, anio, mes, excluirActual],
       );
@@ -244,14 +249,39 @@ class GastosService {
     }
   }
 
+  /**
+   * Resuelve el usuario sobre el que se aplica una operación: solo un ADMIN
+   * puede elegir a otro usuario; un USER siempre opera sobre su propia cuenta.
+   */
+  private async resolverUsuarioObjetivo(
+    userId: string,
+    userRole: 'ADMIN' | 'USER',
+    usuarioIdSolicitado?: string,
+  ): Promise<string> {
+    const objetivo = userRole === 'ADMIN' && usuarioIdSolicitado ? usuarioIdSolicitado : userId;
+    if (objetivo !== userId || (userRole === 'ADMIN' && usuarioIdSolicitado)) {
+      const filas = await query<{ id: string }>(
+        'SELECT id FROM usuarios WHERE id = $1',
+        [objetivo],
+      );
+      if (!filas[0]) {
+        throw new Error('El usuario seleccionado no existe.');
+      }
+    }
+    return objetivo;
+  }
+
   public async createGasto(
     userId: string,
-    data: { descripcion: string; monto: number | string; fecha?: string; categoriaId: string; metodo?: string },
+    userRole: 'ADMIN' | 'USER',
+    data: { descripcion: string; monto: number | string; fecha?: string; categoriaId: string; metodo?: string; usuarioId?: string },
   ): Promise<Gasto> {
+    const usuarioObjetivo = await this.resolverUsuarioObjetivo(userId, userRole, data.usuarioId);
+
     // Validar categoría (debe pertenecer al usuario)
     const categoria = await query<{ id: string }>(
       'SELECT id FROM categorias WHERE id = $1 AND "usuarioId" = $2 AND "deletedAt" IS NULL',
-      [data.categoriaId, userId],
+      [data.categoriaId, usuarioObjetivo],
     );
 
     if (!categoria[0]) {
@@ -266,7 +296,7 @@ class GastosService {
     const monto = Number(data.monto);
 
     await this.validarCapacidad({
-      usuarioId: userId,
+      usuarioId: usuarioObjetivo,
       monto,
       fecha: fechaGasto,
       categoriaId: data.categoriaId,
@@ -276,7 +306,7 @@ class GastosService {
       `INSERT INTO gastos (id, descripcion, monto, fecha, metodo, "createdAt", "updatedAt", "usuarioId", "categoriaId")
        VALUES (gen_random_uuid()::text, $1, $2, $3, $4, now(), now(), $5, $6)
        RETURNING id`,
-      [data.descripcion.trim(), monto, fechaGasto, metodo, userId, data.categoriaId],
+      [data.descripcion.trim(), monto, fechaGasto, metodo, usuarioObjetivo, data.categoriaId],
     );
 
     const filas = await query<GastoRow>(`${SELECT_BASE} WHERE g.id = $1`, [creado[0].id]);
@@ -292,13 +322,18 @@ class GastosService {
     // Verificar que exista el gasto y que el usuario tenga permisos
     const actual = await this.getGastoById(id, userId, userRole);
 
+    // Solo un ADMIN puede reasignar el gasto a otro usuario; para un USER el
+    // dueño es siempre él mismo.
+    const usuarioFinal = await this.resolverUsuarioObjetivo(userId, userRole, data.usuarioId);
+    const usuarioSolicitado = userRole === 'ADMIN' && data.usuarioId ? data.usuarioId : null;
+
     // Recalcular la validación de saldo/presupuesto con los valores efectivos.
     const fechaFinal = data.fecha !== undefined ? new Date(data.fecha) : new Date(actual.fecha);
     const categoriaFinal = data.categoriaId !== undefined ? data.categoriaId : actual.categoriaId;
     const montoFinal = data.monto !== undefined ? Number(data.monto) : actual.monto;
 
     await this.validarCapacidad({
-      usuarioId: userId,
+      usuarioId: usuarioFinal,
       monto: montoFinal,
       fecha: fechaFinal,
       categoriaId: categoriaFinal,
@@ -341,6 +376,11 @@ class GastosService {
       const metodo = ['Efectivo', 'Tarjeta', 'Transferencia'].includes(data.metodo) ? data.metodo : 'Efectivo';
       params.push(metodo);
       sets.push(`metodo = $${params.length}`);
+    }
+
+    if (usuarioSolicitado) {
+      params.push(usuarioSolicitado);
+      sets.push(`"usuarioId" = $${params.length}`);
     }
 
     sets.push('"updatedAt" = now()');
