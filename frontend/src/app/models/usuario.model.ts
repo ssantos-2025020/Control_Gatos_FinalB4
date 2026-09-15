@@ -7,6 +7,7 @@ export interface Usuario {
   color?: string;
   activo?: boolean;
   fechaRegistro?: string;
+  createdAt?: string;
   esMock?: boolean;
 }
 
