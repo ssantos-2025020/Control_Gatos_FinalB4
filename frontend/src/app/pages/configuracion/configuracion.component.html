@@ -91,8 +91,8 @@
               (change)="onFotoSeleccionada($event)"
             />
             <div class="profile-avatar-wrap" *ngIf="usuario()">
-              @if (usuario()?.foto) {
-                <img [src]="usuario()?.foto" [alt]="perfilNombre" class="cfg-avatar cfg-avatar-img" />
+              @if (usuario()?.foto && !fotoRota) {
+                <img [src]="fotoSegura()" [alt]="perfilNombre" class="cfg-avatar cfg-avatar-img" (error)="fotoRota = true" />
               } @else {
                 <div class="cfg-avatar">{{ inicial() }}</div>
               }

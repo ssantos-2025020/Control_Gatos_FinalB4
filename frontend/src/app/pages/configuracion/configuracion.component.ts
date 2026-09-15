@@ -2,6 +2,7 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
+import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { AuthService } from '../../services/auth.service';
 import { CurrencyService } from '../../services/currency.service';
 import { ConfigService, FormatoFecha, FormatoHora, ZONAS_HORARIAS } from '../../services/config.service';
@@ -25,6 +26,7 @@ const MAX_FOTO_BYTES = 5 * 1024 * 1024;
 export class ConfiguracionComponent implements OnInit {
   private authService = inject(AuthService);
   private route = inject(ActivatedRoute);
+  private sanitizer = inject(DomSanitizer);
   configService = inject(ConfigService);
   currencyService = inject(CurrencyService);
 
@@ -58,6 +60,15 @@ export class ConfiguracionComponent implements OnInit {
   inicial = computed(() => (this.usuario()?.nombre || 'A').charAt(0).toUpperCase());
   perfilError = signal<string | null>(null);
   subiendoFoto = signal(false);
+
+  /** TRUE si la foto cargada dio error (URL muerta): se muestra la inicial. */
+  fotoRota = false;
+
+  /** Url segura para el avatar (acepta https de Google y data-URL de fotos subidas). */
+  fotoSegura(): SafeUrl | null {
+    const foto = this.usuario()?.foto;
+    return foto && !this.fotoRota ? this.sanitizer.bypassSecurityTrustUrl(foto) : null;
+  }
 
   /* ── Moneda ── */
   monedas = this.buildMonedas();
@@ -194,6 +205,7 @@ export class ConfiguracionComponent implements OnInit {
   }
 
   private guardarFoto(dataUrl: string): void {
+    this.fotoRota = false;
     this.authService.cambiarFotoLocal(dataUrl);
     this.subiendoFoto.set(false);
     this.mostrarToast('Foto actualizada. Se mostrará solo hasta que cierres sesión.');
