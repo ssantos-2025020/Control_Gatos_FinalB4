@@ -154,7 +154,7 @@ export class PresupuestosComponent implements OnInit, OnDestroy {
     // Solo mostrar categorías que tienen gastos o presupuestos configurados
     return nombresBase
       .filter(name => amounts[name] > 0 || this.limites()[name])
-      .map(name => ({ name, amountUSD: amounts[name] }));
+      .map(name => ({ name, amountUSD: amounts[name] ?? 0 }));
   });
 
   limiteEfectivo = (nombre: string, gastado: number): number =>
