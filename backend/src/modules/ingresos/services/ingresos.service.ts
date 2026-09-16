@@ -20,6 +20,7 @@ export interface IngresoInput {
   fecha?: string;
   categoria?: string;
   metodo?: string;
+  usuarioId?: string;
 }
 
 interface GetIngresosFilters {
@@ -146,16 +147,41 @@ class IngresosService {
     return aIngreso(ingreso);
   }
 
+  /**
+   * Resuelve el usuario sobre el que se aplica una operación: solo un ADMIN
+   * puede elegir a otro usuario; un USER siempre opera sobre su propia cuenta.
+   */
+  private async resolverUsuarioObjetivo(
+    userId: string,
+    userRole: 'ADMIN' | 'USER',
+    usuarioIdSolicitado?: string,
+  ): Promise<string> {
+    const objetivo = userRole === 'ADMIN' && usuarioIdSolicitado ? usuarioIdSolicitado : userId;
+    if (objetivo !== userId || (userRole === 'ADMIN' && usuarioIdSolicitado)) {
+      const filas = await query<{ id: string }>(
+        'SELECT id FROM usuarios WHERE id = $1',
+        [objetivo],
+      );
+      if (!filas[0]) {
+        throw new Error('El usuario seleccionado no existe.');
+      }
+    }
+    return objetivo;
+  }
+
   public async createIngreso(
     userId: string,
+    userRole: 'ADMIN' | 'USER',
     data: {
       descripcion: string;
       monto: number | string;
       fecha?: string;
       categoria?: string;
       metodo?: string;
+      usuarioId?: string;
     },
   ): Promise<Ingreso> {
+    const usuarioObjetivo = await this.resolverUsuarioObjetivo(userId, userRole, data.usuarioId);
     const fechaIngreso = data.fecha ? new Date(data.fecha) : new Date();
 
     const creado = await query<{ id: string }>(
@@ -166,7 +192,7 @@ class IngresosService {
         data.descripcion.trim(),
         Number(data.monto),
         fechaIngreso,
-        userId,
+        usuarioObjetivo,
         data.categoria?.trim() || null,
         data.metodo?.trim() || null,
       ],
@@ -184,6 +210,12 @@ class IngresosService {
   ): Promise<Ingreso> {
     // Verificar que exista el ingreso y que el usuario tenga permisos
     await this.getIngresoById(id, userId, userRole);
+
+    // Solo un ADMIN puede reasignar el ingreso a otro usuario.
+    const usuarioSolicitado = userRole === 'ADMIN' && data.usuarioId ? data.usuarioId : null;
+    if (usuarioSolicitado) {
+      await this.resolverUsuarioObjetivo(userId, userRole, data.usuarioId);
+    }
 
     const sets: string[] = [];
     const params: unknown[] = [id];
@@ -211,6 +243,11 @@ class IngresosService {
     if (data.metodo !== undefined) {
       params.push(data.metodo?.trim() || null);
       sets.push(`metodo = $${params.length}`);
+    }
+
+    if (usuarioSolicitado) {
+      params.push(usuarioSolicitado);
+      sets.push(`"usuarioId" = $${params.length}`);
     }
 
     sets.push('"updatedAt" = now()');

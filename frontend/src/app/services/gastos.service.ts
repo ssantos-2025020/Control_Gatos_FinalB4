@@ -30,6 +30,7 @@ export interface GastoInput {
   fecha: string;
   categoriaId: string;
   metodo?: 'Efectivo' | 'Tarjeta' | 'Transferencia';
+  usuarioId?: string;
 }
 
 export interface FiltroGastos {

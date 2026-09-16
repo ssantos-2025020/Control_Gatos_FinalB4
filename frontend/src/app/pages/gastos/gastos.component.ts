@@ -12,6 +12,7 @@ import { CurrencyService } from '../../services/currency.service';
 import { ConfigService } from '../../services/config.service';
 import { FiltroFechaService } from '../../services/filtro-fecha.service';
 import { crearFiltrosAnteriores } from '../../utils/filtros-record';
+import { normalizarSeparadores, montoDesdeTexto } from '../../utils/monto';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { LucideIconComponent } from '../../components/lucide-icon/lucide-icon.component';
 import { PapeleraAvisoComponent } from '../../components/papelera-aviso/papelera-aviso.component';
@@ -50,6 +51,9 @@ export class GastosComponent implements OnInit, OnDestroy {
   filtroFecha = inject(FiltroFechaService);
 
   usuario = this.authService.getUsuario();
+
+  /** Solo el ADMIN puede elegir a qué usuario pertenece un gasto. */
+  esAdmin = computed(() => this.authService.usuarioSesion()?.role === 'ADMIN');
 
   cargando = signal(false);
   errorMsg = signal<string | null>(null);
@@ -126,7 +130,7 @@ export class GastosComponent implements OnInit, OnDestroy {
       if (cat && g.categoriaId !== cat) return false;
       if (usr && g.usuario?.nombre !== usr) return false;
       if (ini || fin) {
-        const f = this.filtroFecha.toYMDLocal(g.fecha);
+        const f = this.filtroFecha.toYMDUTC(g.fecha);
         if (ini && f < ini) return false;
         if (fin && f > fin) return false;
       }
@@ -140,7 +144,7 @@ export class GastosComponent implements OnInit, OnDestroy {
     const anio = this.filtroFecha.anio();
     return this.gastos().filter((g) => {
       const d = new Date(g.fecha);
-      return !isNaN(d.getTime()) && d.getMonth() + 1 === mes && d.getFullYear() === anio;
+      return !isNaN(d.getTime()) && d.getUTCMonth() + 1 === mes && d.getUTCFullYear() === anio;
     });
   });
 
@@ -173,7 +177,7 @@ export class GastosComponent implements OnInit, OnDestroy {
     const prev = this.mesAnteriorDe(this.filtroFecha.anio(), this.filtroFecha.mes());
     const previo = this.gastos().reduce((s, g) => {
       const d = new Date(g.fecha);
-      return !isNaN(d.getTime()) && d.getFullYear() === prev.anio && d.getMonth() + 1 === prev.mes ? s + Number(g.monto) : s;
+      return !isNaN(d.getTime()) && d.getUTCFullYear() === prev.anio && d.getUTCMonth() + 1 === prev.mes ? s + Number(g.monto) : s;
     }, 0);
     const actual = this.totalGastadoPeriodoUSD();
     if (!previo) return null;
@@ -210,7 +214,7 @@ export class GastosComponent implements OnInit, OnDestroy {
   evolucionDatos = computed(() => {
     const mapa = new Map<string, number>();
     this.gastosPeriodo().forEach((g) => {
-      const fecha = this.filtroFecha.toYMDLocal(g.fecha);
+      const fecha = this.filtroFecha.toYMDUTC(g.fecha);
       mapa.set(fecha, (mapa.get(fecha) ?? 0) + Number(g.monto));
     });
     return [...mapa.entries()].sort(([a], [b]) => a.localeCompare(b));
@@ -237,7 +241,7 @@ export class GastosComponent implements OnInit, OnDestroy {
         .map(([fecha, monto]) => ({ fecha, monto, label: `Semana del ${fecha.slice(8)}/${fecha.slice(5, 7)}` }));
     }
     return datos.map(([fecha, monto]) => ({ fecha, monto, label: fecha }))
-      .filter((d) => new Date(d.fecha).getMonth() + 1 === this.filtroFecha.mes());
+      .filter((d) => new Date(d.fecha).getUTCMonth() + 1 === this.filtroFecha.mes());
   });
 
   evolucionChartType = computed<'line' | 'bar'>(() => {
@@ -589,10 +593,13 @@ export class GastosComponent implements OnInit, OnDestroy {
       error: () => this.errorMsg.set('No se pudieron cargar las categorías.'),
     });
 
-    this.usuariosService.getUsuariosCompletos().subscribe({
-      next: (list) => this.usuarios.set(list),
-      error: () => { /* el dropdown queda con solo "Todos" */ },
-    });
+    // Solo el ADMIN necesita el catálogo de usuarios (para elegir dueño).
+    if (this.esAdmin()) {
+      this.usuariosService.getUsuariosCompletos().subscribe({
+        next: (list) => this.usuarios.set(list),
+        error: () => { /* el dropdown queda vacío */ },
+      });
+    }
 
     this.gastosService.getGastosCompletos().subscribe({
       next: (list) => {
@@ -667,20 +674,20 @@ export class GastosComponent implements OnInit, OnDestroy {
     };
   }
 
-  /** Validador: no permitir fechas futuras (el proyecto no maneja gastos programados). */
+  /** Validador: no permitir fechas futuras (comparación de texto 'YYYY-MM-DD',
+   * independiente de la zona horaria). */
   private noFechaFuturaValidator(): (control: { value: string | null }) => { [key: string]: boolean } | null {
     return (control: { value: string | null }) => {
       const v = control.value;
       if (!v) return null;
       const hoy = new Date();
-      hoy.setHours(0, 0, 0, 0);
-      const fecha = new Date(v);
+      const hoyIso = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
       const errores: { [key: string]: boolean } = {};
-      if (isNaN(fecha.getTime())) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) {
         errores['fechaInvalida'] = true;
         return errores;
       }
-      if (fecha.getTime() > hoy.getTime()) {
+      if (v > hoyIso) {
         errores['fechaFutura'] = true;
         return errores;
       }
@@ -691,7 +698,7 @@ export class GastosComponent implements OnInit, OnDestroy {
   /** Formatea el monto con separador de miles y hasta 2 decimales (solo visual). */
   formatMontoInput(valor: string): string {
     // Conserva solo dígitos y un punto decimal
-    let limpio = valor.replace(/[^\d.]/g, '');
+    let limpio = normalizarSeparadores(valor);
     const partes = limpio.split('.');
     if (partes.length > 2) {
       limpio = partes[0] + '.' + partes.slice(1).join('');
@@ -747,7 +754,9 @@ export class GastosComponent implements OnInit, OnDestroy {
       fecha: this.filtroFecha.hoyIso(),
       categoriaId: '',
       metodo: 'Efectivo',
-      usuarioId: '',
+      usuarioId: this.esAdmin()
+        ? (this.usuarios().find((u) => u.email === this.usuario?.email)?.id ?? '')
+        : '',
     });
     this.mostrarModal.set(true);
   }
@@ -758,7 +767,7 @@ export class GastosComponent implements OnInit, OnDestroy {
     this.gastoForm.setValue({
       descripcion: gasto.descripcion,
       monto: this.formatMontoInput(String(gasto.monto)),
-      fecha: this.filtroFecha.toYMDLocal(gasto.fecha),
+      fecha: this.filtroFecha.toYMDUTC(gasto.fecha),
       categoriaId: gasto.categoriaId,
       metodo: gasto.metodo ?? 'Efectivo',
       usuarioId: gasto.usuario?.id ?? '',
@@ -779,7 +788,7 @@ export class GastosComponent implements OnInit, OnDestroy {
     if (this.guardando()) return;
 
     const v = this.gastoForm.value;
-    const montoNum = Number(String(v.monto ?? '').replace(/[^\d.]/g, ''));
+    const montoNum = montoDesdeTexto(v.monto);
     if (!Number.isFinite(montoNum) || montoNum <= 0) {
       this.gastoForm.get('monto')?.setErrors({ montoInvalido: true });
       this.gastoForm.markAllAsTouched();
@@ -792,6 +801,7 @@ export class GastosComponent implements OnInit, OnDestroy {
       fecha: v.fecha,
       categoriaId: v.categoriaId,
       metodo: v.metodo,
+      usuarioId: this.esAdmin() && v.usuarioId ? v.usuarioId : undefined,
     };
 
     const request$ = this.gastoEditando()

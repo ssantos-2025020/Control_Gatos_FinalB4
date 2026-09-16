@@ -46,6 +46,17 @@ export class UsuariosComponent implements OnInit, OnDestroy {
       u.nombre.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
   });
 
+  /** Usuarios cuya fecha de registro coincide con el mes/año en curso (UTC). */
+  nuevosEsteMes = computed(() => {
+    const ahora = new Date();
+    return this.usuarios().filter((u) => {
+      if (!u.createdAt) return false;
+      const c = new Date(u.createdAt);
+      return c.getUTCFullYear() === ahora.getUTCFullYear() &&
+        c.getUTCMonth() === ahora.getUTCMonth();
+    }).length;
+  });
+
   inicialInicial(nombre?: string): string {
     return (nombre || '?').charAt(0).toUpperCase();
   }

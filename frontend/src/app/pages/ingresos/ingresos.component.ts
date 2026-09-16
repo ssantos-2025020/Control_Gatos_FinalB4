@@ -13,6 +13,7 @@ import { CurrencyService } from '../../services/currency.service';
 import { ConfigService } from '../../services/config.service';
 import { FiltroFechaService } from '../../services/filtro-fecha.service';
 import { crearFiltrosAnteriores } from '../../utils/filtros-record';
+import { normalizarSeparadores, montoDesdeTexto } from '../../utils/monto';
 import { Usuario } from '../../models/usuario.model';
 
 interface ComparacionTexto {
@@ -45,6 +46,9 @@ export class IngresosComponent implements OnInit, OnDestroy {
   filtroFecha = inject(FiltroFechaService);
 
   usuario = this.authService.getUsuario();
+
+  /** Solo el ADMIN puede elegir a qué usuario pertenece un ingreso. */
+  esAdmin = computed(() => this.authService.usuarioSesion()?.role === 'ADMIN');
 
   cargando = signal(false);
   errorMsg = signal<string | null>(null);
@@ -156,7 +160,7 @@ export class IngresosComponent implements OnInit, OnDestroy {
     const ini = this.filtroFechaInicio();
     const fin = this.filtroFechaFin();
     const base = this.filtroBasico();
-    const fechaDia = (iso: string) => this.filtroFecha.toYMDLocal(iso);
+    const fechaDia = (iso: string) => this.filtroFecha.toYMDUTC(iso);
     return base.filter((i) => {
       const f = fechaDia(i.fecha);
       if (ini && f < ini) return false;
@@ -171,7 +175,7 @@ export class IngresosComponent implements OnInit, OnDestroy {
     const anio = this.filtroFecha.anio();
     return this.ingresos().filter((i) => {
       const d = new Date(i.fecha);
-      return !isNaN(d.getTime()) && d.getMonth() + 1 === mes && d.getFullYear() === anio;
+      return !isNaN(d.getTime()) && d.getUTCMonth() + 1 === mes && d.getUTCFullYear() === anio;
     });
   });
 
@@ -204,7 +208,7 @@ export class IngresosComponent implements OnInit, OnDestroy {
     const prev = this.mesAnteriorDe(this.filtroFecha.anio(), this.filtroFecha.mes());
     const previo = this.ingresos().reduce((s, i) => {
       const d = new Date(i.fecha);
-      return !isNaN(d.getTime()) && d.getFullYear() === prev.anio && d.getMonth() + 1 === prev.mes ? s + Number(i.monto) : s;
+      return !isNaN(d.getTime()) && d.getUTCFullYear() === prev.anio && d.getUTCMonth() + 1 === prev.mes ? s + Number(i.monto) : s;
     }, 0);
     const actual = this.totalIngresosPeriodoUSD();
     if (!previo) return null;
@@ -271,7 +275,7 @@ export class IngresosComponent implements OnInit, OnDestroy {
 
   /** Formatea el monto con separador de miles y hasta 2 decimales (solo visual). */
   formatMontoInput(valor: string): string {
-    let limpio = valor.replace(/[^\d.]/g, '');
+    let limpio = normalizarSeparadores(valor);
     const partes = limpio.split('.');
     if (partes.length > 2) {
       limpio = partes[0] + '.' + partes.slice(1).join('');
@@ -309,10 +313,13 @@ export class IngresosComponent implements OnInit, OnDestroy {
     this.cargando.set(true);
     this.errorMsg.set(null);
 
-    this.usuariosService.getUsuariosCompletos().subscribe({
-      next: (list) => this.usuarios.set(list),
-      error: () => { /* el dropdown queda con solo "Todos" */ },
-    });
+    // Solo el ADMIN necesita el catálogo de usuarios (para elegir dueño).
+    if (this.esAdmin()) {
+      this.usuariosService.getUsuariosCompletos().subscribe({
+        next: (list) => this.usuarios.set(list),
+        error: () => { /* el dropdown queda vacío */ },
+      });
+    }
 
     this.categoriasService.getCategoriasCompletas().subscribe({
       next: (list) => this.categorias.set(list),
@@ -398,7 +405,9 @@ export class IngresosComponent implements OnInit, OnDestroy {
       fecha: this.filtroFecha.hoyIso(),
       categoria: '',
       metodo: 'Transferencia',
-      usuarioId: '',
+      usuarioId: this.esAdmin()
+        ? (this.usuarios().find((u) => u.email === this.usuario?.email)?.id ?? '')
+        : '',
     });
     this.mostrarModal.set(true);
   }
@@ -409,7 +418,7 @@ export class IngresosComponent implements OnInit, OnDestroy {
     this.ingresoForm.setValue({
       descripcion: ingreso.descripcion,
       monto: this.formatMontoInput(String(ingreso.monto)),
-      fecha: this.filtroFecha.toYMDLocal(ingreso.fecha),
+      fecha: this.filtroFecha.toYMDUTC(ingreso.fecha),
       categoria: ingreso.categoria ?? '',
       metodo: ingreso.metodo ?? 'Transferencia',
       usuarioId: ingreso.usuario?.id ?? '',
@@ -430,7 +439,7 @@ export class IngresosComponent implements OnInit, OnDestroy {
     if (this.guardando()) return;
 
     const v = this.ingresoForm.value;
-    const montoNum = Number(String(v.monto ?? '').replace(/[^\d.]/g, ''));
+    const montoNum = montoDesdeTexto(v.monto);
     if (!Number.isFinite(montoNum) || montoNum <= 0) {
       this.ingresoForm.get('monto')?.setErrors({ montoInvalido: true });
       this.ingresoForm.markAllAsTouched();
@@ -443,6 +452,7 @@ export class IngresosComponent implements OnInit, OnDestroy {
       fecha: v.fecha,
       categoria: v.categoria || '',
       metodo: v.metodo || 'Transferencia',
+      usuarioId: this.esAdmin() && v.usuarioId ? v.usuarioId : undefined,
     };
 
     const request$ = this.ingresoEditando()

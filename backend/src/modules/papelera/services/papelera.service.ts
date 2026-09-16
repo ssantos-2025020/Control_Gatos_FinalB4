@@ -31,6 +31,49 @@ function aIso(valor: Date | string | undefined | null): string {
   return String(valor ?? '');
 }
 
+/**
+ * Helper de transacción: restaura un conjunto de categorías por ID (junto con
+ * sus gastos y presupuestos). Si una categoría tiene conflicto de unicidad de
+ * nombre (23505) se omite silenciosamente (no revierte la operación).
+ */
+async function restaurarCategoriasDe(
+  q: (text: string, params?: unknown[]) => Promise<any[]>,
+  catIds: string[],
+  userId: string,
+): Promise<{ restauradas: number; omitidas: number }> {
+  let restauradas = 0;
+  let omitidas = 0;
+  for (const catId of catIds) {
+    try {
+      const cats = (await q(
+        `UPDATE categorias SET "deletedAt" = NULL, "updatedAt" = now()
+         WHERE id = $1 AND "usuarioId" = $2 AND "deletedAt" IS NOT NULL
+         RETURNING id`,
+        [catId, userId],
+      )) as Array<{ id: string }>;
+      if (cats[0]) {
+        restauradas++;
+        await q(
+          `UPDATE gastos SET "deletedAt" = NULL WHERE "categoriaId" = $1 AND "usuarioId" = $2 AND "deletedAt" IS NOT NULL`,
+          [catId, userId],
+        );
+        await q(
+          `UPDATE presupuestos SET "deletedAt" = NULL WHERE "categoriaId" = $1 AND "usuarioId" = $2 AND "deletedAt" IS NOT NULL`,
+          [catId, userId],
+        );
+      }
+    } catch (error: any) {
+      if (error?.code === '23505') {
+        // Ya existe una categoría con ese nombre; se omite esta para evitar 500.
+        omitidas++;
+      } else {
+        throw error;
+      }
+    }
+  }
+  return { restauradas, omitidas };
+}
+
 export interface PapeleraContenido {
   categorias: Array<{
     id: string;
@@ -184,6 +227,14 @@ class PapeleraService {
           [id, userId],
         );
         return { message: 'Categoría restaurada con sus gastos y presupuestos.' };
+      }).catch((error: any) => {
+        // Ya existe una categoría vigente con ese nombre en la cuenta.
+        if (error?.code === '23505') {
+          throw new PapeleraConflictoError(
+            'Ya existe una categoría vigente con ese nombre en tu cuenta. Elimina la vigente y vuelve a restaurar, o elimina esta definitivamente.',
+          );
+        }
+        throw error;
       });
     }
 
@@ -250,44 +301,37 @@ class PapeleraService {
           `SELECT id FROM categorias WHERE "usuarioId" = $1 AND "deletedAt" IS NOT NULL`,
           [userId],
         );
-        let restaurados = 0;
-        for (const c of cats) {
-          await q(`UPDATE categorias SET "deletedAt" = NULL, "updatedAt" = now() WHERE id = $1`, [c.id]);
-          await q(
-            `UPDATE gastos SET "deletedAt" = NULL WHERE "categoriaId" = $1 AND "usuarioId" = $2 AND "deletedAt" IS NOT NULL`,
-            [c.id, userId],
-          );
-          await q(
-            `UPDATE presupuestos SET "deletedAt" = NULL WHERE "categoriaId" = $1 AND "usuarioId" = $2 AND "deletedAt" IS NOT NULL`,
-            [c.id, userId],
-          );
-          restaurados++;
-        }
+        const { restauradas, omitidas } = await restaurarCategoriasDe(q, cats.map((c) => c.id), userId);
         return {
           message:
-            restaurados > 0
+            restauradas > 0
               ? 'Categorías restauradas con sus gastos y presupuestos.'
               : 'No hay categorías en la papelera.',
-          restaurados,
+          restaurados: restauradas,
+          omitidos: omitidas > 0 ? omitidas : undefined,
         };
       });
     }
 
     if (tipo === 'presupuestos') {
       return withTransaction(async ({ query: q }) => {
-        const filas = await q<{ id: string }>(
-          `SELECT id FROM presupuestos WHERE "usuarioId" = $1 AND "deletedAt" IS NOT NULL`,
+        const filas = await q<{ id: string; categoriaId: string }>(
+          `SELECT id, "categoriaId" FROM presupuestos WHERE "usuarioId" = $1 AND "deletedAt" IS NOT NULL`,
           [userId],
         );
         let restaurados = 0;
         let omitidos = 0;
+        const catIds = new Set<string>();
         for (const f of filas) {
           try {
             const upd = await q<{ id: string }>(
               `UPDATE presupuestos SET "deletedAt" = NULL WHERE id = $1 AND "deletedAt" IS NOT NULL RETURNING id`,
               [f.id],
             );
-            if (upd[0]) restaurados++;
+            if (upd[0]) {
+              restaurados++;
+              if (f.categoriaId) catIds.add(f.categoriaId);
+            }
           } catch (error: any) {
             // Un presupuesto no puede restaurarse si ya existe uno vigente para
             // la misma categoría y mes (índice único parcial).
@@ -295,11 +339,34 @@ class PapeleraService {
             else throw error;
           }
         }
+        // Restaura también las categorías que estaban en la papelera (igual que
+        // la restauración individual).
+        await restaurarCategoriasDe(q, [...catIds], userId);
         const mensaje =
           omitidos > 0
             ? `${restaurados} presupuesto(s) restaurado(s). ${omitidos} se omitieron porque ya hay un presupuesto vigente con su misma categoría y mes.`
             : `${restaurados} presupuesto(s) restaurado(s).`;
         return { message: mensaje, restaurados, omitidos };
+      });
+    }
+
+    if (tipo === 'gastos') {
+      return withTransaction(async ({ query: q }) => {
+        const filas = await q<{ id: string; categoriaId: string }>(
+          `UPDATE gastos SET "deletedAt" = NULL
+           WHERE "usuarioId" = $1 AND "deletedAt" IS NOT NULL
+           RETURNING id, "categoriaId"`,
+          [userId],
+        );
+        const restaurados = filas.length;
+        // Restaura también las categorías que estaban en la papelera (igual que
+        // la restauración individual).
+        await restaurarCategoriasDe(q, [...new Set(filas.map((f) => f.categoriaId).filter(Boolean))], userId);
+        const base = 'Gasto';
+        return {
+          message: `${base}${restaurados === 1 ? '' : 's'} restaurado${restaurados === 1 ? '' : 's'}.`,
+          restaurados,
+        };
       });
     }
 
@@ -310,7 +377,7 @@ class PapeleraService {
       [userId],
     );
     const restaurados = filas.length;
-    const base = tipo === 'gastos' ? 'Gasto' : 'Ingreso';
+    const base = 'Ingreso';
     return {
       message: `${base}${restaurados === 1 ? '' : 's'} restaurado${restaurados === 1 ? '' : 's'}.`,
       restaurados,

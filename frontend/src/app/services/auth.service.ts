@@ -37,9 +37,15 @@ const USUARIO_KEY = 'auth_usuario';
 
 /**
  * Foto de perfil elegida en la sesión actual (NO se persiste en el backend):
- * se conserva solo mientras dura la sesión y se borra al cerrar sesión.
+ * solo aplica a la cuenta que la subió; se conserva mientras dura la sesión.
  */
 const FOTO_SESION_KEY = 'auth_foto_sesion';
+
+/** Datos guardados de la foto de sesión, ligados a la cuenta que la subió. */
+interface FotoSesion {
+  email: string;
+  foto: string;
+}
 
 /** Segundos antes de la expiración en que se muestra el aviso de cierre de sesión. */
 export const AVISO_SEGUNDOS = 60;
@@ -124,8 +130,34 @@ export class AuthService {
    * a entrar se muestra la foto guardada en la cuenta (o ninguna).
    */
   cambiarFotoLocal(foto: string): void {
-    localStorage.setItem(FOTO_SESION_KEY, foto);
+    const email = this.getUsuario()?.email ?? '';
+    localStorage.setItem(FOTO_SESION_KEY, JSON.stringify({ email, foto } satisfies FotoSesion));
     this.aplicarFotoSesion();
+  }
+
+  /**
+   * Lee la foto de sesión guardada SOLO si pertenece a la cuenta en sesión.
+   * Evita que una foto de otra cuenta (restos de una sesión anterior) pise la
+   * foto real de Google al iniciar sesión.
+   */
+  private leerFotoSesion(email?: string): string | null {
+    const raw = localStorage.getItem(FOTO_SESION_KEY);
+    if (!raw) {
+      return null;
+    }
+    try {
+      const data = JSON.parse(raw) as FotoSesion;
+      if (!data?.foto) {
+        return null;
+      }
+      if (email && data.email && email.toLowerCase() !== data.email.toLowerCase()) {
+        localStorage.removeItem(FOTO_SESION_KEY);
+        return null;
+      }
+      return data.foto;
+    } catch {
+      return null;
+    }
   }
 
   getUsuario(): Usuario | null {
@@ -135,7 +167,7 @@ export class AuthService {
     }
     try {
       const u = JSON.parse(raw) as Usuario;
-      const fotoSesion = localStorage.getItem(FOTO_SESION_KEY);
+      const fotoSesion = this.leerFotoSesion(u.email);
       if (fotoSesion) {
         u.foto = fotoSesion;
       }
@@ -151,8 +183,8 @@ export class AuthService {
    * que el refresh en silencio NO borre la foto elegida en la sesión.
    */
   private aplicarFotoSesion(): void {
-    const foto = localStorage.getItem(FOTO_SESION_KEY);
     const actual = this.getUsuario();
+    const foto = actual?.email ? this.leerFotoSesion(actual.email) : null;
     if (foto && actual) {
       this.actualizarDatosEnStorage({ ...actual, foto });
     }

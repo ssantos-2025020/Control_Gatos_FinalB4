@@ -59,13 +59,14 @@ class IngresosController {
 
   public async createIngreso(req: Request, res: Response): Promise<void> {
     const userId = req.user?.id;
+    const userRole = req.user?.role as 'ADMIN' | 'USER' | undefined;
 
-    if (!userId) {
+    if (!userId || !userRole) {
       res.status(401).json({ message: 'Usuario no autenticado.' });
       return;
     }
 
-    const { descripcion, monto, fecha, categoria, metodo } = req.body;
+    const { descripcion, monto, fecha, categoria, metodo, usuarioId } = req.body;
 
     if (!descripcion || monto === undefined) {
       res.status(400).json({ message: 'Descripción y monto son campos obligatorios.' });
@@ -83,12 +84,13 @@ class IngresosController {
     }
 
     try {
-      const nuevo = await ingresosService.createIngreso(userId, {
+      const nuevo = await ingresosService.createIngreso(userId, userRole, {
         descripcion,
         monto,
         fecha,
         categoria,
         metodo,
+        usuarioId,
       });
       res.status(201).json(nuevo);
     } catch (error: any) {
@@ -106,7 +108,7 @@ class IngresosController {
       return;
     }
 
-    const { descripcion, monto, fecha, categoria, metodo } = req.body;
+    const { descripcion, monto, fecha, categoria, metodo, usuarioId } = req.body;
 
     if (monto !== undefined && (isNaN(Number(monto)) || Number(monto) <= 0)) {
       res.status(400).json({ message: 'El monto debe ser un número positivo.' });
@@ -120,6 +122,7 @@ class IngresosController {
         fecha,
         categoria,
         metodo,
+        usuarioId,
       });
       res.status(200).json(actualizado);
     } catch (error: any) {

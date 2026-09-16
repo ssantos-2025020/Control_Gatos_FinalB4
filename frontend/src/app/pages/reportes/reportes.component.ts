@@ -95,8 +95,8 @@ export class ReportesComponent implements OnInit {
   periodoLabel = computed(() => PERIODO_OPCIONES.find((o) => o.id === this.periodo())?.label ?? 'Este mes');
 
   private mesAnteriorDe(anio: number, mes: number): { anio: number; mes: number } {
-    const d = new Date(anio, mes - 2, 1);
-    return { anio: d.getFullYear(), mes: d.getMonth() + 1 };
+    const d = new Date(Date.UTC(anio, mes - 2, 1));
+    return { anio: d.getUTCFullYear(), mes: d.getUTCMonth() + 1 };
   }
 
   private rangoDe(periodo: PeriodoKey): { inicio: Date; fin: Date } {
@@ -104,21 +104,21 @@ export class ReportesComponent implements OnInit {
     const m = this.filtroFecha.mes();
     switch (periodo) {
       case 'mes':
-        return { inicio: new Date(y, m - 1, 1, 0, 0, 0, 0), fin: new Date(y, m, 0, 23, 59, 59, 999) };
+        return { inicio: new Date(Date.UTC(y, m - 1, 1)), fin: new Date(Date.UTC(y, m, 0, 23, 59, 59, 999)) };
       case 'mesAnterior': {
         const a = this.mesAnteriorDe(y, m);
-        return { inicio: new Date(a.anio, a.mes - 1, 1, 0, 0, 0, 0), fin: new Date(a.anio, a.mes, 0, 23, 59, 59, 999) };
+        return { inicio: new Date(Date.UTC(a.anio, a.mes - 1, 1)), fin: new Date(Date.UTC(a.anio, a.mes, 0, 23, 59, 59, 999)) };
       }
       case '3m': {
-        const d = new Date(y, m - 1 - 2, 1);
-        return { inicio: new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0), fin: new Date(y, m, 0, 23, 59, 59, 999) };
+        const d = new Date(Date.UTC(y, m - 1 - 2, 1));
+        return { inicio: new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)), fin: new Date(Date.UTC(y, m, 0, 23, 59, 59, 999)) };
       }
       case '6m': {
-        const d = new Date(y, m - 1 - 5, 1);
-        return { inicio: new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0), fin: new Date(y, m, 0, 23, 59, 59, 999) };
+        const d = new Date(Date.UTC(y, m - 1 - 5, 1));
+        return { inicio: new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)), fin: new Date(Date.UTC(y, m, 0, 23, 59, 59, 999)) };
       }
       case 'anio':
-        return { inicio: new Date(y, 0, 1, 0, 0, 0, 0), fin: new Date(y, 11, 31, 23, 59, 59, 999) };
+        return { inicio: new Date(Date.UTC(y, 0, 1)), fin: new Date(Date.UTC(y, 11, 31, 23, 59, 59, 999)) };
     }
   }
 
@@ -139,9 +139,9 @@ export class ReportesComponent implements OnInit {
   etiquetaRango(periodo: PeriodoKey): string {
     const { inicio, fin } = this.rangoDe(periodo);
     if (periodo === 'mes' || periodo === 'mesAnterior') {
-      return `${MESES_CORTOS[inicio.getMonth()]} ${inicio.getFullYear()}`;
+      return `${MESES_CORTOS[inicio.getUTCMonth()]} ${inicio.getUTCFullYear()}`;
     }
-    return `${MESES_CORTOS[inicio.getMonth()]} ${inicio.getFullYear()} – ${MESES_CORTOS[fin.getMonth()]} ${fin.getFullYear()}`;
+    return `${MESES_CORTOS[inicio.getUTCMonth()]} ${inicio.getUTCFullYear()} – ${MESES_CORTOS[fin.getUTCMonth()]} ${fin.getUTCFullYear()}`;
   }
 
   periodoAnteriorNombre(): string {
@@ -402,20 +402,20 @@ export class ReportesComponent implements OnInit {
     const balanceArr: number[] = [];
 
     const idDe = (f: Date): string => {
-      if (gran === 'dia') return `${f.getFullYear()}-${f.getMonth()}-${f.getDate()}`;
-      if (gran === 'total') return `${f.getFullYear()}-${f.getMonth()}`;
+      if (gran === 'dia') return `${f.getUTCFullYear()}-${f.getUTCMonth()}-${f.getUTCDate()}`;
+      if (gran === 'total') return `${f.getUTCFullYear()}-${f.getUTCMonth()}`;
       const monday = new Date(f);
-      monday.setDate(f.getDate() - ((f.getDay() + 6) % 7));
-      return `${monday.getFullYear()}-${monday.getMonth()}-${monday.getDate()}`;
+      monday.setUTCDate(f.getUTCDate() - ((f.getUTCDay() + 6) % 7));
+      return `${monday.getUTCFullYear()}-${monday.getUTCMonth()}-${monday.getUTCDate()}`;
     };
     const labelDe = (f: Date): string => {
-      if (gran === 'total') return MESES_CORTOS[f.getMonth()];
-      return `${String(f.getDate()).padStart(2, '0')}/${String(f.getMonth() + 1).padStart(2, '0')}`;
+      if (gran === 'total') return MESES_CORTOS[f.getUTCMonth()];
+      return `${String(f.getUTCDate()).padStart(2, '0')}/${String(f.getUTCMonth() + 1).padStart(2, '0')}`;
     };
     const idDeItem = (iso: string): string => idDe(new Date(iso));
 
     let lastId: string | null = null;
-    for (let d = new Date(inicio.getTime()); d.getTime() <= fin.getTime(); d.setDate(d.getDate() + 1)) {
+    for (let d = new Date(inicio.getTime()); d.getTime() <= fin.getTime(); d = new Date(d.getTime() + 86400000)) {
       const id = idDe(d);
       if (lastId === id) continue;
       lastId = id;

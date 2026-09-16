@@ -138,7 +138,7 @@ export class CategoriasComponent implements OnInit, OnDestroy {
     const anio = this.filtroFecha.anio();
     return this.gastos().filter((g) => {
       const d = new Date(g.fecha);
-      return !isNaN(d.getTime()) && d.getMonth() + 1 === mes && d.getFullYear() === anio;
+      return !isNaN(d.getTime()) && d.getUTCMonth() + 1 === mes && d.getUTCFullYear() === anio;
     });
   });
 
